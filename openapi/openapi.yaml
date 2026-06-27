@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Awniq API
-  version: 0.6.0
-  description: API contract snapshot for the identity, case-management, finance, inventory, and aid distribution foundations.
+  version: 0.7.0
+  description: API contract snapshot for the identity, case-management, finance, inventory, aid distribution, and reporting foundations.
 servers:
   - url: http://localhost:8000/api/v1
 security:
@@ -1107,6 +1107,137 @@ paths:
       responses:
         "200":
           description: Proof attached
+  /reports/dashboard:
+    get:
+      summary: Get dashboard metrics and alerts
+      tags: [Reports]
+      responses:
+        "200":
+          description: Dashboard metrics
+  /reports/donations:
+    get:
+      summary: Get donation report
+      tags: [Reports]
+      parameters:
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+        - $ref: "#/components/parameters/CampaignFilter"
+        - name: payment_method
+          in: query
+          schema:
+            type: string
+        - name: donor_type
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Donation report
+  /reports/campaigns:
+    get:
+      summary: Get campaign report
+      tags: [Reports]
+      parameters:
+        - $ref: "#/components/parameters/CampaignFilter"
+        - $ref: "#/components/parameters/Status"
+      responses:
+        "200":
+          description: Campaign report
+  /reports/beneficiaries:
+    get:
+      summary: Get beneficiary report
+      tags: [Reports]
+      parameters:
+        - $ref: "#/components/parameters/BranchFilter"
+      responses:
+        "200":
+          description: Beneficiary report
+  /reports/case-files:
+    get:
+      summary: Get case file report
+      tags: [Reports]
+      parameters:
+        - $ref: "#/components/parameters/BranchFilter"
+        - $ref: "#/components/parameters/Status"
+      responses:
+        "200":
+          description: Case file report
+  /reports/distributions:
+    get:
+      summary: Get aid distribution report
+      tags: [Reports]
+      parameters:
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+        - $ref: "#/components/parameters/BranchFilter"
+        - $ref: "#/components/parameters/CampaignFilter"
+        - $ref: "#/components/parameters/Status"
+      responses:
+        "200":
+          description: Distribution report
+  /reports/inventory:
+    get:
+      summary: Get inventory report
+      tags: [Reports]
+      parameters:
+        - name: warehouse_id
+          in: query
+          schema:
+            type: integer
+        - name: category
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Inventory report
+  /reports/audit-logs:
+    get:
+      summary: Get audit report
+      tags: [Reports]
+      parameters:
+        - $ref: "#/components/parameters/DateFrom"
+        - $ref: "#/components/parameters/DateTo"
+      responses:
+        "200":
+          description: Audit report
+  /exports:
+    get:
+      summary: List export records
+      tags: [Exports]
+      responses:
+        "200":
+          description: Export collection
+    post:
+      summary: Create a synchronous CSV export
+      tags: [Exports]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ExportRequest"
+      responses:
+        "200":
+          description: Created export record
+  /exports/{export}:
+    get:
+      summary: Get export record
+      tags: [Exports]
+      parameters:
+        - $ref: "#/components/parameters/ExportId"
+      responses:
+        "200":
+          description: Export detail
+  /exports/{export}/download:
+    get:
+      summary: Download completed export file
+      tags: [Exports]
+      parameters:
+        - $ref: "#/components/parameters/ExportId"
+      responses:
+        "200":
+          description: CSV file download
 components:
   securitySchemes:
     bearerAuth:
@@ -1119,6 +1250,28 @@ components:
       in: query
       schema:
         type: string
+    DateFrom:
+      name: date_from
+      in: query
+      schema:
+        type: string
+        format: date
+    DateTo:
+      name: date_to
+      in: query
+      schema:
+        type: string
+        format: date
+    BranchFilter:
+      name: branch_id
+      in: query
+      schema:
+        type: integer
+    CampaignFilter:
+      name: campaign_id
+      in: query
+      schema:
+        type: integer
     Status:
       name: status
       in: query
@@ -1198,6 +1351,12 @@ components:
         type: integer
     DistributionItemId:
       name: item
+      in: path
+      required: true
+      schema:
+        type: integer
+    ExportId:
+      name: export
       in: path
       required: true
       schema:
@@ -1620,6 +1779,41 @@ components:
         notes:
           type: string
           nullable: true
+    ExportRequest:
+      type: object
+      required: [report_type]
+      properties:
+        report_type:
+          type: string
+          enum: [donations, campaigns, beneficiaries, case_files, distributions, inventory, audit_logs]
+        format:
+          type: string
+          enum: [csv]
+          default: csv
+        filters:
+          type: object
+          nullable: true
+          properties:
+            date_from:
+              type: string
+              format: date
+            date_to:
+              type: string
+              format: date
+            branch_id:
+              type: integer
+            warehouse_id:
+              type: integer
+            campaign_id:
+              type: integer
+            status:
+              type: string
+            payment_method:
+              type: string
+            donor_type:
+              type: string
+            category:
+              type: string
     RejectionReasonRequest:
       type: object
       required: [reason]

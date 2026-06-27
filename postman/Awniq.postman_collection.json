@@ -973,6 +973,174 @@
           }
         }
       ]
+    },
+    {
+      "name": "Reports and Exports",
+      "item": [
+        {
+          "name": "Dashboard Report",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/reports/dashboard"
+          }
+        },
+        {
+          "name": "Donation Report",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/reports/donations"
+          }
+        },
+        {
+          "name": "Campaign Report",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/reports/campaigns"
+          }
+        },
+        {
+          "name": "Beneficiary Report",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/reports/beneficiaries"
+          }
+        },
+        {
+          "name": "Distribution Report",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/reports/distributions"
+          }
+        },
+        {
+          "name": "Inventory Report",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/reports/inventory"
+          }
+        },
+        {
+          "name": "Create Donation CSV Export",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"report_type\": \"donations\",\n  \"format\": \"csv\",\n  \"filters\": {\n    \"date_from\": \"2026-06-01\",\n    \"date_to\": \"2026-06-30\"\n  }\n}"
+            },
+            "url": "{{baseUrl}}/exports"
+          }
+        },
+        {
+          "name": "List Exports",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/exports"
+          }
+        },
+        {
+          "name": "Download Export",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/exports/1/download"
+          }
+        }
+      ]
     }
   ]
 }

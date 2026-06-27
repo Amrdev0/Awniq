@@ -2,11 +2,11 @@
 
 Awniq is an open-source aid operations platform for NGOs, charities, and small institutions.
 
-The project is being built with Laravel as the main backend application foundation. The current foundation includes identity, organizations, branches, users, roles, audit logs, beneficiaries, family members, case files, case notes, private case document upload/download, donors, campaigns, donations, allocations, payment transactions, receipts, warehouses, inventory items, stock lots, stock movements, stock status reports, aid batches, aid distributions, delivery proof metadata, and stock reservations.
+The project is being built with Laravel as the main backend application foundation. The current foundation includes identity, organizations, branches, users, roles, audit logs, beneficiaries, family members, case files, case notes, private case document upload/download, donors, campaigns, donations, allocations, payment transactions, receipts, warehouses, inventory items, stock lots, stock movements, stock status reports, aid batches, aid distributions, delivery proof metadata, stock reservations, dashboard metrics, internal reports, and CSV exports.
 
 ## Current Status
 
-Phase 06: aid batches and distribution foundation.
+Phase 07: dashboard, reports, and exports foundation.
 
 Implemented so far:
 
@@ -25,6 +25,7 @@ Implemented so far:
 - Manual donation confirmation with idempotency support
 - Warehouse, inventory item, stock lot, stock movement, low-stock, and expiring-stock endpoints
 - Aid batch, distribution, distribution item, approval, reservation, delivery, failure, reschedule, and proof endpoints
+- Dashboard, donation, campaign, beneficiary, case, distribution, inventory, audit report, and CSV export endpoints
 - Demo identity, case-management, finance, inventory, and aid distribution seed data for manual testing
 - Basic backend and frontend test setup
 - GitHub Actions CI workflow
@@ -247,6 +248,17 @@ POST   /api/v1/aid-distributions/{distribution}/mark-delivered
 POST   /api/v1/aid-distributions/{distribution}/mark-failed
 POST   /api/v1/aid-distributions/{distribution}/reschedule
 POST   /api/v1/aid-distributions/{distribution}/proof
+GET    /api/v1/reports/dashboard
+GET    /api/v1/reports/donations
+GET    /api/v1/reports/campaigns
+GET    /api/v1/reports/beneficiaries
+GET    /api/v1/reports/case-files
+GET    /api/v1/reports/distributions
+GET    /api/v1/reports/inventory
+GET    /api/v1/reports/audit-logs
+POST   /api/v1/exports
+GET    /api/v1/exports
+GET    /api/v1/exports/{export}/download
 ```
 
 ## Test Commands
@@ -286,9 +298,9 @@ Only `.env.example` files should be committed.
 
 Next implementation phase:
 
-1. Dashboard metrics
-2. Internal reports
-3. CSV exports
-4. Report access controls
+1. Public organization profile
+2. Public campaigns
+3. Aggregated impact statistics
+4. Public transparency pages
 
-Transparency, notifications, and release hardening will follow after reporting is stable.
+Public transparency, notifications, and release hardening will follow after reporting is stable.

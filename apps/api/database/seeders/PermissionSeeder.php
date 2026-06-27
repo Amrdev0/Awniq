@@ -110,6 +110,17 @@ class PermissionSeeder extends Seeder
         'aid_distributions.reschedule',
         'delivery_proofs.upload',
         'delivery_proofs.view',
+        'dashboard.view',
+        'reports.donations.view',
+        'reports.campaigns.view',
+        'reports.beneficiaries.view',
+        'reports.case_files.view',
+        'reports.distributions.view',
+        'reports.inventory.view',
+        'reports.audit_logs.view',
+        'reports.export',
+        'exports.view',
+        'exports.download',
     ];
 
     public function run(): void

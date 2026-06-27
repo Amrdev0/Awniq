@@ -195,6 +195,27 @@ Batch approval reserves stock transactionally and creates `reserved` stock movem
 
 The seeded database includes one draft aid batch with one approved beneficiary and one rice distribution item. Submit and approve it manually to test stock reservation.
 
+Protected report and export endpoints:
+
+```txt
+GET  /api/v1/reports/dashboard
+GET  /api/v1/reports/donations
+GET  /api/v1/reports/campaigns
+GET  /api/v1/reports/beneficiaries
+GET  /api/v1/reports/case-files
+GET  /api/v1/reports/distributions
+GET  /api/v1/reports/inventory
+GET  /api/v1/reports/audit-logs
+POST /api/v1/exports
+GET  /api/v1/exports
+GET  /api/v1/exports/{export}
+GET  /api/v1/exports/{export}/download
+```
+
+Report endpoints accept shared filters such as `date_from`, `date_to`, `branch_id`, `warehouse_id`, `campaign_id`, `status`, `payment_method`, `donor_type`, and `category` where relevant.
+
+Exports are generated synchronously as CSV files for the local MVP and require both `reports.export` and the source report view permission.
+
 ## Commands
 
 ```bash

@@ -15,11 +15,13 @@ use App\Http\Controllers\Api\V1\DistributionItemController;
 use App\Http\Controllers\Api\V1\DonationAllocationController;
 use App\Http\Controllers\Api\V1\DonationController;
 use App\Http\Controllers\Api\V1\DonorController;
+use App\Http\Controllers\Api\V1\ExportController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\InventoryItemController;
 use App\Http\Controllers\Api\V1\OrganizationController;
 use App\Http\Controllers\Api\V1\PaymentTransactionController;
 use App\Http\Controllers\Api\V1\PermissionController;
+use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\StockLotController;
 use App\Http\Controllers\Api\V1\StockMovementController;
@@ -198,4 +200,18 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('aid-distributions/{distribution}/items', [DistributionItemController::class, 'store'])->middleware('can:aid_distributions.update');
     Route::patch('aid-distributions/{distribution}/items/{item}', [DistributionItemController::class, 'update'])->middleware('can:aid_distributions.update');
     Route::delete('aid-distributions/{distribution}/items/{item}', [DistributionItemController::class, 'destroy'])->middleware('can:aid_distributions.update');
+
+    Route::get('reports/dashboard', [ReportController::class, 'dashboard'])->middleware('can:dashboard.view');
+    Route::get('reports/donations', [ReportController::class, 'donations'])->middleware('can:reports.donations.view');
+    Route::get('reports/campaigns', [ReportController::class, 'campaigns'])->middleware('can:reports.campaigns.view');
+    Route::get('reports/beneficiaries', [ReportController::class, 'beneficiaries'])->middleware('can:reports.beneficiaries.view');
+    Route::get('reports/case-files', [ReportController::class, 'caseFiles'])->middleware('can:reports.case_files.view');
+    Route::get('reports/distributions', [ReportController::class, 'distributions'])->middleware('can:reports.distributions.view');
+    Route::get('reports/inventory', [ReportController::class, 'inventory'])->middleware('can:reports.inventory.view');
+    Route::get('reports/audit-logs', [ReportController::class, 'auditLogs'])->middleware('can:reports.audit_logs.view');
+
+    Route::get('exports', [ExportController::class, 'index'])->middleware('can:exports.view');
+    Route::post('exports', [ExportController::class, 'store'])->middleware('can:reports.export');
+    Route::get('exports/{export}', [ExportController::class, 'show'])->middleware('can:exports.view');
+    Route::get('exports/{export}/download', [ExportController::class, 'download'])->middleware('can:exports.download');
 });

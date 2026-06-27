@@ -12,6 +12,7 @@ import { getBeneficiaries, getCaseFiles } from '../services/api/cases'
 import { getCampaigns, getDonations, getDonors } from '../services/api/finance'
 import { getAuditLogs, getBranches, getOrganization, getRoles, getUsers } from '../services/api/identity'
 import { getExpiringStock, getInventoryItems, getLowStock, getStockSummary, getWarehouses } from '../services/api/inventory'
+import { getDashboardReport } from '../services/api/reports'
 
 function LoginPage({ onAuthenticated }: { onAuthenticated: (token: string) => void }) {
   const queryClient = useQueryClient()
@@ -97,6 +98,7 @@ function AdminPage() {
   const lowStock = useQuery({ queryKey: ['stock-low-stock'], queryFn: getLowStock, enabled: Boolean(me.data) })
   const expiringStock = useQuery({ queryKey: ['stock-expiring'], queryFn: getExpiringStock, enabled: Boolean(me.data) })
   const aidBatches = useQuery({ queryKey: ['aid-batches'], queryFn: getAidBatches, enabled: Boolean(me.data) })
+  const dashboardReport = useQuery({ queryKey: ['reports-dashboard'], queryFn: getDashboardReport, enabled: Boolean(me.data) })
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSettled: () => {
@@ -151,6 +153,27 @@ function AdminPage() {
         </header>
 
         <div className="grid gap-4 lg:grid-cols-2">
+          <section className="lg:col-span-2">
+            <Panel icon={<ListChecks size={20} />} title="Dashboard Metrics">
+              {dashboardReport.data ? (
+                <KeyValueRows
+                  rows={[
+                    ['Donations this month', `${dashboardReport.data.metrics.total_donations_this_month} EGP`],
+                    ['Active campaigns', String(dashboardReport.data.metrics.active_campaigns)],
+                    ['Pending cases', String(dashboardReport.data.metrics.pending_cases)],
+                    ['Approved beneficiaries', String(dashboardReport.data.metrics.approved_beneficiaries)],
+                    ['Aid batches in progress', String(dashboardReport.data.metrics.aid_batches_in_progress)],
+                    ['Completed distributions', String(dashboardReport.data.metrics.completed_distributions)],
+                    ['Low stock items', String(dashboardReport.data.metrics.low_stock_items)],
+                    ['Expiring stock lots', String(dashboardReport.data.metrics.expiring_stock_lots)],
+                  ]}
+                />
+              ) : (
+                <LoadingOrEmpty isLoading={dashboardReport.isPending} label="Loading dashboard metrics" />
+              )}
+            </Panel>
+          </section>
+
           <Panel icon={<Building2 size={20} />} title="Organization">
             {organization.data ? (
               <KeyValueRows
