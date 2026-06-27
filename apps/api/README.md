@@ -8,6 +8,7 @@ Laravel backend API for Awniq.
 composer install
 cp .env.example .env
 php artisan key:generate
+php artisan migrate --seed
 php artisan serve --host=127.0.0.1 --port=8000
 ```
 
@@ -26,6 +27,32 @@ DB_PASSWORD=
 
 ```txt
 GET /api/v1/health
+```
+
+## Demo Login
+
+```txt
+Email: admin@awniq.test
+Password: Password123!
+```
+
+Login endpoint:
+
+```txt
+POST /api/v1/auth/login
+```
+
+Protected identity endpoints:
+
+```txt
+GET    /api/v1/auth/me
+POST   /api/v1/auth/logout
+GET    /api/v1/organization
+GET    /api/v1/branches
+GET    /api/v1/users
+GET    /api/v1/roles
+GET    /api/v1/permissions
+GET    /api/v1/audit-logs
 ```
 
 ## Commands

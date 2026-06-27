@@ -1,103 +1,226 @@
+import { useState } from 'react'
+import type { FormEvent, ReactNode } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router'
-import { Activity, Server, ShieldCheck } from 'lucide-react'
-import { useQuery } from '@tanstack/react-query'
-import { appConfig } from '../app/config'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Building2, GitBranch, ListChecks, LogOut, ShieldCheck, Users } from 'lucide-react'
+import { clearStoredToken, getStoredToken, storeToken } from '../app/auth'
 import { EmptyState } from '../components/ui/EmptyState'
 import { LoadingState } from '../components/ui/LoadingState'
-import { UnauthorizedState } from '../components/ui/UnauthorizedState'
-import { getHealth } from '../services/api/health'
+import { getMe, login, logout } from '../services/api/auth'
+import { getAuditLogs, getBranches, getOrganization, getRoles, getUsers } from '../services/api/identity'
 
-function FoundationPage() {
-  const health = useQuery({
-    queryKey: ['health'],
-    queryFn: getHealth,
-    retry: false,
+function LoginPage() {
+  const queryClient = useQueryClient()
+  const [email, setEmail] = useState('admin@awniq.test')
+  const [password, setPassword] = useState('Password123!')
+  const loginMutation = useMutation({
+    mutationFn: login,
+    onSuccess: (response) => {
+      storeToken(response.data.token)
+      void queryClient.invalidateQueries()
+    },
   })
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    loginMutation.mutate({ email, password })
+  }
+
+  return (
+    <main className="grid min-h-svh place-items-center bg-[#f6f8f7] px-4 text-[#172026]">
+      <form className="w-full max-w-sm rounded-md border border-[#d9e1de] bg-white p-6" onSubmit={handleSubmit}>
+        <div className="mb-6">
+          <p className="text-sm font-medium uppercase tracking-wide text-[#4b635b]">Awniq Admin</p>
+          <h1 className="mt-2 text-2xl font-semibold text-[#10201a]">Sign in</h1>
+        </div>
+
+        <label className="mb-4 block text-sm">
+          <span className="mb-1 block font-medium text-[#10201a]">Email</span>
+          <input
+            className="w-full rounded-md border border-[#c8d4cf] px-3 py-2"
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            type="email"
+          />
+        </label>
+
+        <label className="mb-5 block text-sm">
+          <span className="mb-1 block font-medium text-[#10201a]">Password</span>
+          <input
+            className="w-full rounded-md border border-[#c8d4cf] px-3 py-2"
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            type="password"
+          />
+        </label>
+
+        {loginMutation.isError ? (
+          <div className="mb-4 rounded-md border border-[#efd8bb] bg-[#fff8ed] p-3 text-sm text-[#6c4b1f]">
+            Login failed. Check the API server and credentials.
+          </div>
+        ) : null}
+
+        <button
+          className="w-full rounded-md bg-[#236b55] px-4 py-2 font-medium text-white disabled:opacity-60"
+          disabled={loginMutation.isPending}
+          type="submit"
+        >
+          {loginMutation.isPending ? 'Signing in...' : 'Sign in'}
+        </button>
+      </form>
+    </main>
+  )
+}
+
+function AdminPage() {
+  const queryClient = useQueryClient()
+  const me = useQuery({ queryKey: ['me'], queryFn: getMe, enabled: Boolean(getStoredToken()) })
+  const organization = useQuery({ queryKey: ['organization'], queryFn: getOrganization, enabled: Boolean(me.data) })
+  const branches = useQuery({ queryKey: ['branches'], queryFn: getBranches, enabled: Boolean(me.data) })
+  const users = useQuery({ queryKey: ['users'], queryFn: getUsers, enabled: Boolean(me.data) })
+  const roles = useQuery({ queryKey: ['roles'], queryFn: getRoles, enabled: Boolean(me.data) })
+  const auditLogs = useQuery({ queryKey: ['audit-logs'], queryFn: getAuditLogs, enabled: Boolean(me.data) })
+  const logoutMutation = useMutation({
+    mutationFn: logout,
+    onSettled: () => {
+      clearStoredToken()
+      void queryClient.clear()
+      window.location.reload()
+    },
+  })
+
+  if (!getStoredToken()) {
+    return <LoginPage />
+  }
+
+  if (me.isPending) {
+    return (
+      <main className="grid min-h-svh place-items-center bg-[#f6f8f7]">
+        <LoadingState label="Loading admin session" />
+      </main>
+    )
+  }
+
+  if (me.isError) {
+    clearStoredToken()
+
+    return <LoginPage />
+  }
 
   return (
     <main className="min-h-svh bg-[#f6f8f7] text-[#172026]">
-      <div className="mx-auto flex min-h-svh w-full max-w-6xl flex-col px-6 py-8">
-        <header className="flex flex-wrap items-center justify-between gap-4 border-b border-[#d9e1de] pb-5">
+      <div className="mx-auto w-full max-w-6xl px-6 py-8">
+        <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-[#d9e1de] pb-5">
           <div>
-            <p className="text-sm font-medium uppercase tracking-wide text-[#4b635b]">
-              Aid operations platform
+            <p className="text-sm font-medium uppercase tracking-wide text-[#4b635b]">Identity foundation</p>
+            <h1 className="mt-2 text-3xl font-semibold text-[#10201a]">Awniq Admin</h1>
+            <p className="mt-1 text-sm text-[#52645e]">
+              Signed in as {me.data.name} ({me.data.email})
             </p>
-            <h1 className="mt-2 text-3xl font-semibold tracking-normal text-[#10201a]">
-              Awniq Admin
-            </h1>
           </div>
-          <div className="rounded-md border border-[#c8d4cf] bg-white px-3 py-2 text-sm text-[#42534d]">
-            Phase 01 foundation
-          </div>
+          <button
+            className="inline-flex items-center gap-2 rounded-md border border-[#c8d4cf] bg-white px-3 py-2 text-sm"
+            onClick={() => logoutMutation.mutate()}
+            type="button"
+          >
+            <LogOut size={16} aria-hidden="true" />
+            Logout
+          </button>
         </header>
 
-        <section className="grid flex-1 gap-4 py-8 md:grid-cols-[240px_1fr]">
-          <nav className="rounded-md border border-[#d9e1de] bg-white p-3">
-            <a className="flex items-center gap-2 rounded-md bg-[#e8f1ed] px-3 py-2 text-sm font-medium text-[#10201a]" href="/">
-              <Activity size={16} aria-hidden="true" />
-              Foundation
-            </a>
-          </nav>
+        <div className="grid gap-4 lg:grid-cols-2">
+          <Panel icon={<Building2 size={20} />} title="Organization">
+            {organization.data ? (
+              <KeyValueRows
+                rows={[
+                  ['Name', organization.data.name],
+                  ['Slug', organization.data.slug],
+                  ['Currency', organization.data.default_currency],
+                  ['Timezone', organization.data.timezone],
+                  ['Status', organization.data.status],
+                ]}
+              />
+            ) : (
+              <LoadingOrEmpty isLoading={organization.isPending} label="Loading organization" />
+            )}
+          </Panel>
 
-          <div className="space-y-4">
-            <section className="rounded-md border border-[#d9e1de] bg-white p-5">
-              <div className="flex items-start gap-3">
-                <Server className="mt-1 text-[#236b55]" size={22} aria-hidden="true" />
-                <div>
-                  <h2 className="text-xl font-semibold text-[#10201a]">API connection</h2>
-                  <p className="mt-1 text-sm text-[#52645e]">
-                    The admin shell reads its backend URL from <code>VITE_API_BASE_URL</code>.
-                  </p>
-                </div>
-              </div>
+          <Panel icon={<GitBranch size={20} />} title="Branches">
+            <SimpleList items={branches.data} label="branches" render={(branch) => `${branch.code} - ${branch.name} (${branch.status})`} />
+          </Panel>
 
-              <div className="mt-5 rounded-md border border-[#d9e1de] bg-[#fbfcfb] p-4">
-                {health.isPending ? <LoadingState label="Checking API health" /> : null}
-                {health.isError ? (
-                  <EmptyState
-                    title="API not reachable"
-                    description={`Start the API or update VITE_API_BASE_URL. Current URL: ${appConfig.apiBaseUrl}`}
-                  />
-                ) : null}
-                {health.data ? (
-                  <div className="flex flex-wrap items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-[#10201a]">Status: {health.data.status}</p>
-                      <p className="text-sm text-[#52645e]">Service: {health.data.service}</p>
-                    </div>
-                    <span className="rounded-md bg-[#dff3e9] px-3 py-1 text-sm font-medium text-[#176044]">
-                      Connected
-                    </span>
-                  </div>
-                ) : null}
-              </div>
-            </section>
+          <Panel icon={<Users size={20} />} title="Users">
+            <SimpleList items={users.data} label="users" render={(user) => `${user.name} - ${user.email} - ${user.status}`} />
+          </Panel>
 
-            <section className="rounded-md border border-[#d9e1de] bg-white p-5">
-              <div className="flex items-start gap-3">
-                <ShieldCheck className="mt-1 text-[#236b55]" size={22} aria-hidden="true" />
-                <div>
-                  <h2 className="text-xl font-semibold text-[#10201a]">Access layer placeholder</h2>
-                  <p className="mt-1 text-sm text-[#52645e]">
-                    Authentication, roles, permissions, and route guards are implemented in Phase 02.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-5">
-                <UnauthorizedState />
-              </div>
-            </section>
-          </div>
-        </section>
+          <Panel icon={<ShieldCheck size={20} />} title="Roles">
+            <SimpleList items={roles.data} label="roles" render={(role) => `${role.name} (${role.permissions?.length ?? 0} permissions)`} />
+          </Panel>
+
+          <section className="lg:col-span-2">
+            <Panel icon={<ListChecks size={20} />} title="Recent Audit Logs">
+              <SimpleList items={auditLogs.data} label="audit logs" render={(log) => `${log.action} - ${log.entity_type} #${log.entity_id ?? '-'} - ${log.created_at}`} />
+            </Panel>
+          </section>
+        </div>
       </div>
     </main>
   )
 }
 
+function Panel({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+  return (
+    <section className="rounded-md border border-[#d9e1de] bg-white p-5">
+      <div className="mb-4 flex items-center gap-2 text-[#10201a]">
+        <span className="text-[#236b55]">{icon}</span>
+        <h2 className="text-lg font-semibold">{title}</h2>
+      </div>
+      {children}
+    </section>
+  )
+}
+
+function KeyValueRows({ rows }: { rows: [string, string | null][] }) {
+  return (
+    <dl className="space-y-2 text-sm">
+      {rows.map(([label, value]) => (
+        <div className="flex justify-between gap-4 border-b border-[#edf1ef] pb-2" key={label}>
+          <dt className="text-[#52645e]">{label}</dt>
+          <dd className="font-medium text-[#10201a]">{value ?? '-'}</dd>
+        </div>
+      ))}
+    </dl>
+  )
+}
+
+function SimpleList<T>({ items, label, render }: { items: T[] | undefined; label: string; render: (item: T) => string }) {
+  if (!items) {
+    return <LoadingOrEmpty isLoading label={`Loading ${label}`} />
+  }
+
+  if (items.length === 0) {
+    return <EmptyState title={`No ${label} found`} />
+  }
+
+  return (
+    <ul className="divide-y divide-[#edf1ef] text-sm">
+      {items.map((item, index) => (
+        <li className="py-2 text-[#10201a]" key={index}>
+          {render(item)}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function LoadingOrEmpty({ isLoading, label }: { isLoading: boolean; label: string }) {
+  return isLoading ? <LoadingState label={label} /> : <EmptyState title="No data available" />
+}
+
 const router = createBrowserRouter([
   {
     path: '/',
-    element: <FoundationPage />,
+    element: <AdminPage />,
   },
 ])
 

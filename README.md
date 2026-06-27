@@ -6,7 +6,7 @@ The project is being built with Laravel as the main backend application foundati
 
 ## Current Status
 
-Phase 01: repository setup and application foundation.
+Phase 02: identity foundation.
 
 Implemented so far:
 
@@ -16,6 +16,10 @@ Implemented so far:
 - Laravel Sanctum installed for upcoming API authentication
 - Spatie Laravel Permission installed for upcoming roles and permissions
 - Public health endpoint at `/api/v1/health`
+- Authentication endpoints
+- Organization profile endpoint
+- Branch, user, role, permission, and audit-log endpoints
+- Demo seed data for manual testing
 - Basic backend and frontend test setup
 - GitHub Actions CI workflow
 
@@ -89,6 +93,7 @@ DB_PASSWORD=
 Run the API:
 
 ```bash
+php artisan migrate --seed
 php artisan serve --host=127.0.0.1 --port=8000
 ```
 
@@ -128,6 +133,62 @@ Admin URL:
 http://127.0.0.1:5173
 ```
 
+## Demo Accounts
+
+Seeded users all use this password:
+
+```txt
+Password123!
+```
+
+Available accounts:
+
+```txt
+super@awniq.test
+admin@awniq.test
+case.manager@awniq.test
+finance@awniq.test
+warehouse@awniq.test
+distribution@awniq.test
+volunteer@awniq.test
+auditor@awniq.test
+```
+
+Use `admin@awniq.test` for normal manual testing.
+
+## Manual API Test
+
+Login:
+
+```bash
+curl -X POST http://127.0.0.1:8000/api/v1/auth/login \
+  -H "Content-Type: application/json" \
+  -d "{\"email\":\"admin@awniq.test\",\"password\":\"Password123!\",\"device_name\":\"manual\"}"
+```
+
+Use the returned token as a Bearer token:
+
+```bash
+curl http://127.0.0.1:8000/api/v1/auth/me \
+  -H "Authorization: Bearer YOUR_TOKEN"
+```
+
+Useful protected endpoints:
+
+```txt
+GET    /api/v1/auth/me
+POST   /api/v1/auth/logout
+GET    /api/v1/organization
+PATCH  /api/v1/organization
+GET    /api/v1/branches
+POST   /api/v1/branches
+GET    /api/v1/users
+POST   /api/v1/users
+GET    /api/v1/roles
+GET    /api/v1/permissions
+GET    /api/v1/audit-logs
+```
+
 ## Test Commands
 
 Backend:
@@ -165,10 +226,10 @@ Only `.env.example` files should be committed.
 
 Next implementation phase:
 
-1. Authentication
-2. Organization setup
-3. Branches
-4. Users
-5. Roles and permissions
+1. Beneficiary profiles
+2. Family members
+3. Case files
+4. Case notes and documents
+5. Case approval workflow
 
 Business modules such as beneficiaries, donors, donations, inventory, and aid distribution will be added after the authentication and organization foundation is complete.

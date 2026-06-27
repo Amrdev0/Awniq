@@ -1,4 +1,5 @@
 import { appConfig } from '../../app/config'
+import { getStoredToken } from '../../app/auth'
 
 export class ApiError extends Error {
   public readonly status: number
@@ -13,11 +14,14 @@ export class ApiError extends Error {
 }
 
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
+  const token = getStoredToken()
+
   const response = await fetch(`${appConfig.apiBaseUrl}${path}`, {
     ...init,
     headers: {
       Accept: 'application/json',
       'Content-Type': 'application/json',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init.headers,
     },
   })
