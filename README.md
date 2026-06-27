@@ -2,11 +2,11 @@
 
 Awniq is an open-source aid operations platform for NGOs, charities, and small institutions.
 
-The project is being built with Laravel as the main backend application foundation. The first phase currently includes the project skeleton, environment setup, a health-check API endpoint, and a starter admin frontend shell. No beneficiary, donation, inventory, or distribution business modules have been implemented yet.
+The project is being built with Laravel as the main backend application foundation. The current foundation includes identity, organizations, branches, users, roles, audit logs, beneficiaries, family members, case files, case notes, and private case document upload/download.
 
 ## Current Status
 
-Phase 02: identity foundation.
+Phase 03: beneficiary and case-management foundation.
 
 Implemented so far:
 
@@ -19,7 +19,9 @@ Implemented so far:
 - Authentication endpoints
 - Organization profile endpoint
 - Branch, user, role, permission, and audit-log endpoints
-- Demo seed data for manual testing
+- Beneficiary profile, family member, case file, case note, and case document endpoints
+- Beneficiary and case review/approval workflows
+- Demo identity and case-management seed data for manual testing
 - Basic backend and frontend test setup
 - GitHub Actions CI workflow
 
@@ -187,6 +189,24 @@ POST   /api/v1/users
 GET    /api/v1/roles
 GET    /api/v1/permissions
 GET    /api/v1/audit-logs
+GET    /api/v1/beneficiaries
+POST   /api/v1/beneficiaries
+GET    /api/v1/beneficiaries/{beneficiary}
+POST   /api/v1/beneficiaries/{beneficiary}/submit-review
+POST   /api/v1/beneficiaries/{beneficiary}/approve
+POST   /api/v1/beneficiaries/{beneficiary}/reject
+GET    /api/v1/beneficiaries/{beneficiary}/family-members
+POST   /api/v1/beneficiaries/{beneficiary}/family-members
+GET    /api/v1/case-files
+POST   /api/v1/case-files
+GET    /api/v1/case-files/{caseFile}
+POST   /api/v1/case-files/{caseFile}/submit-review
+POST   /api/v1/case-files/{caseFile}/approve
+POST   /api/v1/case-files/{caseFile}/reject
+GET    /api/v1/case-files/{caseFile}/notes
+POST   /api/v1/case-files/{caseFile}/notes
+GET    /api/v1/case-files/{caseFile}/documents
+POST   /api/v1/case-files/{caseFile}/documents
 ```
 
 ## Test Commands
@@ -226,10 +246,9 @@ Only `.env.example` files should be committed.
 
 Next implementation phase:
 
-1. Beneficiary profiles
-2. Family members
-3. Case files
-4. Case notes and documents
-5. Case approval workflow
+1. Donors
+2. Campaigns
+3. Donations
+4. Donation allocation to approved cases
 
-Business modules such as beneficiaries, donors, donations, inventory, and aid distribution will be added after the authentication and organization foundation is complete.
+Inventory, aid distribution, reporting, transparency, notifications, and release hardening will follow after the beneficiary/case and donation foundations are stable.

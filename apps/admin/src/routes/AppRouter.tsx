@@ -2,11 +2,12 @@ import { useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Building2, GitBranch, ListChecks, LogOut, ShieldCheck, Users } from 'lucide-react'
+import { Building2, FileText, GitBranch, ListChecks, LogOut, ShieldCheck, Users } from 'lucide-react'
 import { clearStoredToken, getStoredToken, storeToken } from '../app/auth'
 import { EmptyState } from '../components/ui/EmptyState'
 import { LoadingState } from '../components/ui/LoadingState'
 import { getMe, login, logout } from '../services/api/auth'
+import { getBeneficiaries, getCaseFiles } from '../services/api/cases'
 import { getAuditLogs, getBranches, getOrganization, getRoles, getUsers } from '../services/api/identity'
 
 function LoginPage() {
@@ -80,6 +81,8 @@ function AdminPage() {
   const users = useQuery({ queryKey: ['users'], queryFn: getUsers, enabled: Boolean(me.data) })
   const roles = useQuery({ queryKey: ['roles'], queryFn: getRoles, enabled: Boolean(me.data) })
   const auditLogs = useQuery({ queryKey: ['audit-logs'], queryFn: getAuditLogs, enabled: Boolean(me.data) })
+  const beneficiaries = useQuery({ queryKey: ['beneficiaries'], queryFn: getBeneficiaries, enabled: Boolean(me.data) })
+  const caseFiles = useQuery({ queryKey: ['case-files'], queryFn: getCaseFiles, enabled: Boolean(me.data) })
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSettled: () => {
@@ -112,7 +115,7 @@ function AdminPage() {
       <div className="mx-auto w-full max-w-6xl px-6 py-8">
         <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-[#d9e1de] pb-5">
           <div>
-            <p className="text-sm font-medium uppercase tracking-wide text-[#4b635b]">Identity foundation</p>
+            <p className="text-sm font-medium uppercase tracking-wide text-[#4b635b]">Operations foundation</p>
             <h1 className="mt-2 text-3xl font-semibold text-[#10201a]">Awniq Admin</h1>
             <p className="mt-1 text-sm text-[#52645e]">
               Signed in as {me.data.name} ({me.data.email})
@@ -155,6 +158,26 @@ function AdminPage() {
 
           <Panel icon={<ShieldCheck size={20} />} title="Roles">
             <SimpleList items={roles.data} label="roles" render={(role) => `${role.name} (${role.permissions?.length ?? 0} permissions)`} />
+          </Panel>
+
+          <Panel icon={<Users size={20} />} title="Beneficiaries">
+            <SimpleList
+              items={beneficiaries.data}
+              label="beneficiaries"
+              render={(beneficiary) =>
+                `${beneficiary.code} - ${beneficiary.full_name} - ${beneficiary.status} - ${beneficiary.vulnerability_level} - ${beneficiary.household_size} household`
+              }
+            />
+          </Panel>
+
+          <Panel icon={<FileText size={20} />} title="Case Files">
+            <SimpleList
+              items={caseFiles.data}
+              label="case files"
+              render={(caseFile) =>
+                `${caseFile.case_number} - ${caseFile.beneficiary?.full_name ?? 'Unassigned'} - ${caseFile.case_type} - ${caseFile.status} - ${caseFile.priority}`
+              }
+            />
           </Panel>
 
           <section className="lg:col-span-2">

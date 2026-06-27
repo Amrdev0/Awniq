@@ -1,36 +1,485 @@
 openapi: 3.0.3
 info:
   title: Awniq API
-  version: 0.1.0
-  description: Initial OpenAPI placeholder for the Phase 01 foundation.
+  version: 0.3.0
+  description: API contract snapshot for the identity, beneficiary, and case-management foundation.
 servers:
   - url: http://localhost:8000/api/v1
+security:
+  - bearerAuth: []
 paths:
   /health:
     get:
       summary: Check API health
-      tags:
-        - System
+      tags: [System]
+      security: []
       responses:
         "200":
           description: API health status
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  data:
-                    type: object
-                    properties:
-                      status:
-                        type: string
-                        example: ok
-                      service:
-                        type: string
-                        example: awniq-api
-                      environment:
-                        type: string
-                        example: local
-                  message:
-                    type: string
-                    example: Operation completed successfully.
+  /auth/login:
+    post:
+      summary: Create a Sanctum API token
+      tags: [Auth]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Authenticated user and bearer token
+  /auth/me:
+    get:
+      summary: Get the authenticated user profile
+      tags: [Auth]
+      responses:
+        "200":
+          description: Current user
+  /auth/logout:
+    post:
+      summary: Revoke the current API token
+      tags: [Auth]
+      responses:
+        "200":
+          description: Token revoked
+  /organization:
+    get:
+      summary: Get current organization
+      tags: [Identity]
+      responses:
+        "200":
+          description: Organization profile
+    patch:
+      summary: Update current organization
+      tags: [Identity]
+      responses:
+        "200":
+          description: Updated organization profile
+  /branches:
+    get:
+      summary: List organization branches
+      tags: [Identity]
+      responses:
+        "200":
+          description: Branch collection
+    post:
+      summary: Create a branch
+      tags: [Identity]
+      responses:
+        "200":
+          description: Created branch
+  /users:
+    get:
+      summary: List organization users
+      tags: [Identity]
+      responses:
+        "200":
+          description: User collection
+    post:
+      summary: Create an organization user
+      tags: [Identity]
+      responses:
+        "200":
+          description: Created user
+  /roles:
+    get:
+      summary: List roles
+      tags: [Identity]
+      responses:
+        "200":
+          description: Role collection
+  /permissions:
+    get:
+      summary: List permissions
+      tags: [Identity]
+      responses:
+        "200":
+          description: Permission collection
+  /audit-logs:
+    get:
+      summary: List audit log entries
+      tags: [Audit]
+      responses:
+        "200":
+          description: Audit log collection
+  /beneficiaries:
+    get:
+      summary: List beneficiaries
+      tags: [Beneficiaries]
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/Status"
+        - name: branch_id
+          in: query
+          schema:
+            type: integer
+        - name: vulnerability_level
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, critical]
+      responses:
+        "200":
+          description: Beneficiary collection
+    post:
+      summary: Create a beneficiary
+      tags: [Beneficiaries]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/BeneficiaryRequest"
+      responses:
+        "200":
+          description: Created beneficiary
+  /beneficiaries/{beneficiary}:
+    get:
+      summary: Get a beneficiary
+      tags: [Beneficiaries]
+      parameters:
+        - $ref: "#/components/parameters/BeneficiaryId"
+      responses:
+        "200":
+          description: Beneficiary detail
+    patch:
+      summary: Update a beneficiary
+      tags: [Beneficiaries]
+      parameters:
+        - $ref: "#/components/parameters/BeneficiaryId"
+      responses:
+        "200":
+          description: Updated beneficiary
+    delete:
+      summary: Delete a beneficiary
+      tags: [Beneficiaries]
+      parameters:
+        - $ref: "#/components/parameters/BeneficiaryId"
+      responses:
+        "200":
+          description: Deleted beneficiary
+  /beneficiaries/{beneficiary}/submit-review:
+    post:
+      summary: Submit a beneficiary for review
+      tags: [Beneficiaries]
+      parameters:
+        - $ref: "#/components/parameters/BeneficiaryId"
+      responses:
+        "200":
+          description: Beneficiary marked pending review
+  /beneficiaries/{beneficiary}/approve:
+    post:
+      summary: Approve a beneficiary
+      tags: [Beneficiaries]
+      parameters:
+        - $ref: "#/components/parameters/BeneficiaryId"
+      responses:
+        "200":
+          description: Beneficiary approved
+  /beneficiaries/{beneficiary}/reject:
+    post:
+      summary: Reject a beneficiary
+      tags: [Beneficiaries]
+      parameters:
+        - $ref: "#/components/parameters/BeneficiaryId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectionReasonRequest"
+      responses:
+        "200":
+          description: Beneficiary rejected
+  /beneficiaries/{beneficiary}/family-members:
+    get:
+      summary: List beneficiary family members
+      tags: [Beneficiaries]
+      parameters:
+        - $ref: "#/components/parameters/BeneficiaryId"
+      responses:
+        "200":
+          description: Family member collection
+    post:
+      summary: Create a beneficiary family member
+      tags: [Beneficiaries]
+      parameters:
+        - $ref: "#/components/parameters/BeneficiaryId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/FamilyMemberRequest"
+      responses:
+        "200":
+          description: Created family member
+  /case-files:
+    get:
+      summary: List case files
+      tags: [Case Files]
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/Status"
+        - name: priority
+          in: query
+          schema:
+            type: string
+            enum: [low, medium, high, urgent]
+      responses:
+        "200":
+          description: Case file collection
+    post:
+      summary: Create a case file
+      tags: [Case Files]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaseFileRequest"
+      responses:
+        "200":
+          description: Created case file
+  /case-files/{caseFile}:
+    get:
+      summary: Get a case file
+      tags: [Case Files]
+      parameters:
+        - $ref: "#/components/parameters/CaseFileId"
+      responses:
+        "200":
+          description: Case file detail
+    patch:
+      summary: Update a case file
+      tags: [Case Files]
+      parameters:
+        - $ref: "#/components/parameters/CaseFileId"
+      responses:
+        "200":
+          description: Updated case file
+    delete:
+      summary: Delete a case file
+      tags: [Case Files]
+      parameters:
+        - $ref: "#/components/parameters/CaseFileId"
+      responses:
+        "200":
+          description: Deleted case file
+  /case-files/{caseFile}/submit-review:
+    post:
+      summary: Submit a case file for review
+      tags: [Case Files]
+      parameters:
+        - $ref: "#/components/parameters/CaseFileId"
+      responses:
+        "200":
+          description: Case file marked under review
+  /case-files/{caseFile}/approve:
+    post:
+      summary: Approve a case file
+      tags: [Case Files]
+      parameters:
+        - $ref: "#/components/parameters/CaseFileId"
+      responses:
+        "200":
+          description: Case file approved
+  /case-files/{caseFile}/reject:
+    post:
+      summary: Reject a case file
+      tags: [Case Files]
+      parameters:
+        - $ref: "#/components/parameters/CaseFileId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RejectionReasonRequest"
+      responses:
+        "200":
+          description: Case file rejected
+  /case-files/{caseFile}/notes:
+    get:
+      summary: List case notes
+      tags: [Case Notes]
+      parameters:
+        - $ref: "#/components/parameters/CaseFileId"
+      responses:
+        "200":
+          description: Case note collection
+    post:
+      summary: Create a case note
+      tags: [Case Notes]
+      parameters:
+        - $ref: "#/components/parameters/CaseFileId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaseNoteRequest"
+      responses:
+        "200":
+          description: Created case note
+  /case-files/{caseFile}/documents:
+    get:
+      summary: List case documents
+      tags: [Case Documents]
+      parameters:
+        - $ref: "#/components/parameters/CaseFileId"
+      responses:
+        "200":
+          description: Case document collection
+    post:
+      summary: Upload a case document
+      tags: [Case Documents]
+      parameters:
+        - $ref: "#/components/parameters/CaseFileId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/CaseDocumentUploadRequest"
+      responses:
+        "200":
+          description: Uploaded case document
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: Sanctum
+  parameters:
+    Search:
+      name: search
+      in: query
+      schema:
+        type: string
+    Status:
+      name: status
+      in: query
+      schema:
+        type: string
+    BeneficiaryId:
+      name: beneficiary
+      in: path
+      required: true
+      schema:
+        type: integer
+    CaseFileId:
+      name: caseFile
+      in: path
+      required: true
+      schema:
+        type: integer
+  schemas:
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+          example: admin@awniq.test
+        password:
+          type: string
+          example: Password123!
+        device_name:
+          type: string
+          example: manual
+    BeneficiaryRequest:
+      type: object
+      required: [branch_id, full_name]
+      properties:
+        branch_id:
+          type: integer
+        full_name:
+          type: string
+        national_id:
+          type: string
+          nullable: true
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+        gender:
+          type: string
+          enum: [male, female, other, unknown]
+        phone:
+          type: string
+          nullable: true
+        city:
+          type: string
+          nullable: true
+        household_size:
+          type: integer
+          minimum: 1
+        vulnerability_level:
+          type: string
+          enum: [low, medium, high, critical]
+    FamilyMemberRequest:
+      type: object
+      required: [full_name, relationship]
+      properties:
+        full_name:
+          type: string
+        relationship:
+          type: string
+        birth_date:
+          type: string
+          format: date
+          nullable: true
+        gender:
+          type: string
+          enum: [male, female, other, unknown]
+    CaseFileRequest:
+      type: object
+      required: [beneficiary_id, case_type]
+      properties:
+        beneficiary_id:
+          type: integer
+        case_type:
+          type: string
+          example: monthly_food_support
+        priority:
+          type: string
+          enum: [low, medium, high, urgent]
+        assigned_to_user_id:
+          type: integer
+          nullable: true
+        assessment_summary:
+          type: string
+          nullable: true
+        next_follow_up_date:
+          type: string
+          format: date
+          nullable: true
+    CaseNoteRequest:
+      type: object
+      required: [note]
+      properties:
+        note:
+          type: string
+        visibility:
+          type: string
+          enum: [internal, private, public]
+    CaseDocumentUploadRequest:
+      type: object
+      required: [document_type, file]
+      properties:
+        document_type:
+          type: string
+          enum: [identity, proof_of_address, medical_report, income_proof, assessment, consent, other]
+        file:
+          type: string
+          format: binary
+    RejectionReasonRequest:
+      type: object
+      required: [reason]
+      properties:
+        reason:
+          type: string

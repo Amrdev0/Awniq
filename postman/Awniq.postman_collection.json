@@ -202,6 +202,233 @@
           }
         }
       ]
+    },
+    {
+      "name": "Beneficiaries",
+      "item": [
+        {
+          "name": "List Beneficiaries",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/beneficiaries"
+          }
+        },
+        {
+          "name": "Create Beneficiary",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branch_id\": 1,\n  \"full_name\": \"Manual Test Beneficiary\",\n  \"national_id\": \"EG-MANUAL-0001\",\n  \"birth_date\": \"1990-01-01\",\n  \"gender\": \"female\",\n  \"phone\": \"+20 100 333 0001\",\n  \"country\": \"Egypt\",\n  \"city\": \"Cairo\",\n  \"district\": \"Downtown\",\n  \"address\": \"Manual test address\",\n  \"marital_status\": \"single\",\n  \"employment_status\": \"unemployed\",\n  \"monthly_income\": 500,\n  \"household_size\": 1,\n  \"vulnerability_level\": \"high\"\n}"
+            },
+            "url": "{{baseUrl}}/beneficiaries"
+          }
+        },
+        {
+          "name": "Submit Beneficiary Review",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/beneficiaries/1/submit-review"
+          }
+        },
+        {
+          "name": "Approve Beneficiary",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/beneficiaries/1/approve"
+          }
+        },
+        {
+          "name": "Family Members",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/beneficiaries/1/family-members"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Case Files",
+      "item": [
+        {
+          "name": "List Case Files",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/case-files"
+          }
+        },
+        {
+          "name": "Create Case File",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiary_id\": 1,\n  \"case_type\": \"manual_support\",\n  \"priority\": \"medium\",\n  \"assessment_summary\": \"Manual Postman test case.\",\n  \"next_follow_up_date\": \"2026-07-15\"\n}"
+            },
+            "url": "{{baseUrl}}/case-files"
+          }
+        },
+        {
+          "name": "Submit Case Review",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/case-files/1/submit-review"
+          }
+        },
+        {
+          "name": "Approve Case File",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/case-files/1/approve"
+          }
+        },
+        {
+          "name": "Create Case Note",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"note\": \"Manual Postman note.\",\n  \"visibility\": \"internal\"\n}"
+            },
+            "url": "{{baseUrl}}/case-files/1/notes"
+          }
+        },
+        {
+          "name": "Case Documents",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/case-files/1/documents"
+          }
+        }
+      ]
     }
   ]
 }
