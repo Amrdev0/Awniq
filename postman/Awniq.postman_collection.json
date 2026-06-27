@@ -1141,6 +1141,107 @@
           }
         }
       ]
+    },
+    {
+      "name": "Public Portal",
+      "item": [
+        {
+          "name": "Public Organization",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/public/organization"
+          }
+        },
+        {
+          "name": "Public Campaigns",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/public/campaigns"
+          }
+        },
+        {
+          "name": "Public Campaign Detail",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/public/campaigns/ramadan-food-relief"
+          }
+        },
+        {
+          "name": "Public Stats",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/public/stats"
+          }
+        },
+        {
+          "name": "Public Reports",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/public/reports"
+          }
+        },
+        {
+          "name": "Create Public Donation Intent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"campaign_slug\": \"ramadan-food-relief\",\n  \"donor_name\": \"Manual Public Donor\",\n  \"donor_email\": \"public.manual@example.test\",\n  \"amount\": 250,\n  \"currency\": \"EGP\"\n}"
+            },
+            "url": "{{baseUrl}}/public/donations"
+          }
+        },
+        {
+          "name": "Public Portal Settings",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/settings/public-portal"
+          }
+        },
+        {
+          "name": "Update Public Portal Settings",
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"enabled\": true,\n  \"show_donation_totals\": true,\n  \"show_campaign_progress\": true,\n  \"show_contact_info\": true,\n  \"donations_enabled\": false,\n  \"reports_enabled\": true\n}"
+            },
+            "url": "{{baseUrl}}/settings/public-portal"
+          }
+        }
+      ]
     }
   ]
 }

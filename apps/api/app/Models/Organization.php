@@ -36,4 +36,14 @@ class Organization extends Model
     {
         return $this->hasMany(User::class);
     }
+
+    public function settings(): HasMany
+    {
+        return $this->hasMany(OrganizationSetting::class);
+    }
+
+    public function publicDonationIntents(): HasMany
+    {
+        return $this->hasMany(PublicDonationIntent::class);
+    }
 }

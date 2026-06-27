@@ -48,6 +48,8 @@ Protected identity endpoints:
 GET    /api/v1/auth/me
 POST   /api/v1/auth/logout
 GET    /api/v1/organization
+GET    /api/v1/settings/public-portal
+PATCH  /api/v1/settings/public-portal
 GET    /api/v1/branches
 GET    /api/v1/users
 GET    /api/v1/roles
@@ -215,6 +217,21 @@ GET  /api/v1/exports/{export}/download
 Report endpoints accept shared filters such as `date_from`, `date_to`, `branch_id`, `warehouse_id`, `campaign_id`, `status`, `payment_method`, `donor_type`, and `category` where relevant.
 
 Exports are generated synchronously as CSV files for the local MVP and require both `reports.export` and the source report view permission.
+
+Public transparency endpoints:
+
+```txt
+GET  /api/v1/public/organization
+GET  /api/v1/public/campaigns
+GET  /api/v1/public/campaigns/{slug}
+GET  /api/v1/public/stats
+GET  /api/v1/public/reports
+POST /api/v1/public/donations
+```
+
+Public endpoints are unauthenticated and rate limited. They use public-safe resources and must not expose donor identities, beneficiary identities, case details, audit logs, private campaign records, or internal operational notes.
+
+The seeded demo organization has its public portal enabled, public reports enabled, and public donation intake disabled. Use `PATCH /api/v1/settings/public-portal` as `admin@awniq.test` to toggle public settings for manual testing.
 
 ## Commands
 

@@ -2,11 +2,11 @@
 
 Awniq is an open-source aid operations platform for NGOs, charities, and small institutions.
 
-The project is being built with Laravel as the main backend application foundation. The current foundation includes identity, organizations, branches, users, roles, audit logs, beneficiaries, family members, case files, case notes, private case document upload/download, donors, campaigns, donations, allocations, payment transactions, receipts, warehouses, inventory items, stock lots, stock movements, stock status reports, aid batches, aid distributions, delivery proof metadata, stock reservations, dashboard metrics, internal reports, and CSV exports.
+The project is being built with Laravel as the main backend application foundation. The current foundation includes identity, organizations, branches, users, roles, audit logs, beneficiaries, family members, case files, case notes, private case document upload/download, donors, campaigns, donations, allocations, payment transactions, receipts, warehouses, inventory items, stock lots, stock movements, stock status reports, aid batches, aid distributions, delivery proof metadata, stock reservations, dashboard metrics, internal reports, CSV exports, public portal settings, public-safe campaign/statistics APIs, and public donation intent placeholders.
 
 ## Current Status
 
-Phase 07: dashboard, reports, and exports foundation.
+Phase 08: public transparency portal foundation.
 
 Implemented so far:
 
@@ -26,6 +26,8 @@ Implemented so far:
 - Warehouse, inventory item, stock lot, stock movement, low-stock, and expiring-stock endpoints
 - Aid batch, distribution, distribution item, approval, reservation, delivery, failure, reschedule, and proof endpoints
 - Dashboard, donation, campaign, beneficiary, case, distribution, inventory, audit report, and CSV export endpoints
+- Public organization profile, public campaign, public stats, public reports, public donation intent, and public portal settings endpoints
+- Public portal frontend route group at `/public`
 - Demo identity, case-management, finance, inventory, and aid distribution seed data for manual testing
 - Basic backend and frontend test setup
 - GitHub Actions CI workflow
@@ -140,6 +142,12 @@ Admin URL:
 http://127.0.0.1:5173
 ```
 
+Public portal URL:
+
+```txt
+http://127.0.0.1:5173/public
+```
+
 ## Demo Accounts
 
 Seeded users all use this password:
@@ -187,6 +195,8 @@ GET    /api/v1/auth/me
 POST   /api/v1/auth/logout
 GET    /api/v1/organization
 PATCH  /api/v1/organization
+GET    /api/v1/settings/public-portal
+PATCH  /api/v1/settings/public-portal
 GET    /api/v1/branches
 POST   /api/v1/branches
 GET    /api/v1/users
@@ -261,6 +271,19 @@ GET    /api/v1/exports
 GET    /api/v1/exports/{export}/download
 ```
 
+Useful public endpoints:
+
+```txt
+GET  /api/v1/public/organization
+GET  /api/v1/public/campaigns
+GET  /api/v1/public/campaigns/{slug}
+GET  /api/v1/public/stats
+GET  /api/v1/public/reports
+POST /api/v1/public/donations
+```
+
+The public endpoints do not require authentication. They only return public-safe organization fields, public campaigns, aggregate statistics, and placeholder donation intent responses. Beneficiary, donor, case, inventory, receipt, and audit details are intentionally excluded.
+
 ## Test Commands
 
 Backend:
@@ -298,9 +321,9 @@ Only `.env.example` files should be committed.
 
 Next implementation phase:
 
-1. Public organization profile
-2. Public campaigns
-3. Aggregated impact statistics
-4. Public transparency pages
+1. Notifications and scheduled reminders
+2. Automation for recurring operational jobs
+3. Background jobs for heavier workflows
+4. Notification preferences and delivery logs
 
-Public transparency, notifications, and release hardening will follow after reporting is stable.
+Notifications, scheduler automation, and release hardening will follow after the public portal foundation is stable.

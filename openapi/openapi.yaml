@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Awniq API
-  version: 0.7.0
-  description: API contract snapshot for the identity, case-management, finance, inventory, aid distribution, and reporting foundations.
+  version: 0.8.0
+  description: API contract snapshot for the identity, case-management, finance, inventory, aid distribution, reporting, and public transparency foundations.
 servers:
   - url: http://localhost:8000/api/v1
 security:
@@ -16,6 +16,95 @@ paths:
       responses:
         "200":
           description: API health status
+  /public/organization:
+    get:
+      summary: Get public organization profile
+      tags: [Public Portal]
+      security: []
+      parameters:
+        - name: organization
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public-safe organization profile
+        "404":
+          description: Public portal is disabled or organization was not found
+  /public/campaigns:
+    get:
+      summary: List public campaigns
+      tags: [Public Portal]
+      security: []
+      parameters:
+        - name: organization
+          in: query
+          schema:
+            type: string
+        - $ref: "#/components/parameters/Search"
+      responses:
+        "200":
+          description: Public campaign collection
+  /public/campaigns/{slug}:
+    get:
+      summary: Get public campaign by slug
+      tags: [Public Portal]
+      security: []
+      parameters:
+        - $ref: "#/components/parameters/PublicCampaignSlug"
+        - name: organization
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public campaign detail
+        "404":
+          description: Campaign is not public or was not found
+  /public/stats:
+    get:
+      summary: Get aggregate public impact statistics
+      tags: [Public Portal]
+      security: []
+      parameters:
+        - name: organization
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public aggregate statistics
+  /public/reports:
+    get:
+      summary: Get public report snapshot when enabled
+      tags: [Public Portal]
+      security: []
+      parameters:
+        - name: organization
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public report snapshot
+        "404":
+          description: Public reports are disabled
+  /public/donations:
+    post:
+      summary: Create a public donation intent placeholder
+      tags: [Public Portal]
+      security: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicDonationIntentRequest"
+      responses:
+        "201":
+          description: Donation intent recorded
+        "403":
+          description: Public donations are disabled
   /auth/login:
     post:
       summary: Create a Sanctum API token
@@ -57,6 +146,25 @@ paths:
       responses:
         "200":
           description: Updated organization profile
+  /settings/public-portal:
+    get:
+      summary: Get public portal settings
+      tags: [Public Portal Settings]
+      responses:
+        "200":
+          description: Public portal settings
+    patch:
+      summary: Update public portal settings
+      tags: [Public Portal Settings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePublicPortalSettingsRequest"
+      responses:
+        "200":
+          description: Updated public portal settings
   /branches:
     get:
       summary: List organization branches
@@ -1361,6 +1469,12 @@ components:
       required: true
       schema:
         type: integer
+    PublicCampaignSlug:
+      name: slug
+      in: path
+      required: true
+      schema:
+        type: string
   schemas:
     LoginRequest:
       type: object
@@ -1814,6 +1928,60 @@ components:
               type: string
             category:
               type: string
+    PublicDonationIntentRequest:
+      type: object
+      required: [amount, currency]
+      additionalProperties: false
+      properties:
+        organization:
+          type: string
+          nullable: true
+          description: Optional organization slug when multiple public organizations exist.
+        campaign_slug:
+          type: string
+          nullable: true
+          description: Optional public active campaign slug.
+        donor_name:
+          type: string
+          nullable: true
+        donor_email:
+          type: string
+          format: email
+          nullable: true
+        amount:
+          type: number
+          minimum: 1
+        currency:
+          type: string
+          example: EGP
+    UpdatePublicPortalSettingsRequest:
+      type: object
+      additionalProperties: false
+      properties:
+        enabled:
+          type: boolean
+        show_donation_totals:
+          type: boolean
+        show_campaign_progress:
+          type: boolean
+        show_completed_campaigns:
+          type: boolean
+        show_contact_info:
+          type: boolean
+        donations_enabled:
+          type: boolean
+        reports_enabled:
+          type: boolean
+        contact_email:
+          type: string
+          format: email
+          nullable: true
+        contact_phone:
+          type: string
+          nullable: true
+        about:
+          type: string
+          nullable: true
     RejectionReasonRequest:
       type: object
       required: [reason]

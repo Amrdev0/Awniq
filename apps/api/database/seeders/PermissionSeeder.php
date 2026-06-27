@@ -121,6 +121,9 @@ class PermissionSeeder extends Seeder
         'reports.export',
         'exports.view',
         'exports.download',
+        'public_portal_settings.view',
+        'public_portal_settings.update',
+        'public_portal.preview',
     ];
 
     public function run(): void

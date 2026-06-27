@@ -4,8 +4,11 @@ namespace Database\Seeders;
 
 use App\Models\Branch;
 use App\Models\Organization;
+use App\Models\OrganizationSetting;
 use App\Models\User;
+use App\Services\PublicPortal\PublicPortalSettingsService;
 use Illuminate\Database\Seeder;
+use Spatie\Permission\PermissionRegistrar;
 
 class DemoIdentitySeeder extends Seeder
 {
@@ -26,6 +29,27 @@ class DemoIdentitySeeder extends Seeder
                 'timezone' => 'Africa/Cairo',
                 'language' => 'en',
                 'status' => 'active',
+            ],
+        );
+
+        OrganizationSetting::updateOrCreate(
+            [
+                'organization_id' => $organization->id,
+                'key' => PublicPortalSettingsService::KEY,
+            ],
+            [
+                'value' => [
+                    'enabled' => true,
+                    'show_donation_totals' => true,
+                    'show_campaign_progress' => true,
+                    'show_completed_campaigns' => true,
+                    'show_contact_info' => true,
+                    'donations_enabled' => false,
+                    'reports_enabled' => true,
+                    'contact_email' => 'public@hopebridge.test',
+                    'contact_phone' => '+20 100 000 0100',
+                    'about' => 'Hope Bridge Foundation is a demo NGO profile for testing Awniq public transparency features.',
+                ],
             ],
         );
 
@@ -85,5 +109,7 @@ class DemoIdentitySeeder extends Seeder
 
         $cairoBranch->update(['manager_user_id' => User::where('email', 'admin@awniq.test')->value('id')]);
         $alexBranch->update(['manager_user_id' => User::where('email', 'warehouse@awniq.test')->value('id')]);
+
+        app(PermissionRegistrar::class)->forgetCachedPermissions();
     }
 }

@@ -21,6 +21,8 @@ use App\Http\Controllers\Api\V1\InventoryItemController;
 use App\Http\Controllers\Api\V1\OrganizationController;
 use App\Http\Controllers\Api\V1\PaymentTransactionController;
 use App\Http\Controllers\Api\V1\PermissionController;
+use App\Http\Controllers\Api\V1\PublicPortalController;
+use App\Http\Controllers\Api\V1\PublicPortalSettingsController;
 use App\Http\Controllers\Api\V1\ReportController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\StockLotController;
@@ -31,6 +33,15 @@ use App\Http\Controllers\Api\V1\WarehouseController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('health', HealthController::class)->name('api.v1.health');
+
+Route::prefix('public')->middleware('throttle:60,1')->group(function (): void {
+    Route::get('organization', [PublicPortalController::class, 'organization']);
+    Route::get('campaigns', [PublicPortalController::class, 'campaigns']);
+    Route::get('campaigns/{slug}', [PublicPortalController::class, 'campaign']);
+    Route::get('stats', [PublicPortalController::class, 'stats']);
+    Route::get('reports', [PublicPortalController::class, 'reports']);
+    Route::post('donations', [PublicPortalController::class, 'donate'])->middleware('throttle:10,1');
+});
 
 Route::prefix('auth')->group(function (): void {
     Route::post('login', [AuthController::class, 'login'])->middleware('throttle:5,1');
@@ -44,6 +55,9 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     Route::get('organization', [OrganizationController::class, 'show'])->middleware('can:organization.view');
     Route::patch('organization', [OrganizationController::class, 'update'])->middleware('can:organization.update');
+
+    Route::get('settings/public-portal', [PublicPortalSettingsController::class, 'show'])->middleware('can:public_portal_settings.view');
+    Route::patch('settings/public-portal', [PublicPortalSettingsController::class, 'update'])->middleware('can:public_portal_settings.update');
 
     Route::get('branches', [BranchController::class, 'index'])->middleware('can:branches.view');
     Route::post('branches', [BranchController::class, 'store'])->middleware('can:branches.create');

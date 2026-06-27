@@ -13,6 +13,7 @@ import { getCampaigns, getDonations, getDonors } from '../services/api/finance'
 import { getAuditLogs, getBranches, getOrganization, getRoles, getUsers } from '../services/api/identity'
 import { getExpiringStock, getInventoryItems, getLowStock, getStockSummary, getWarehouses } from '../services/api/inventory'
 import { getDashboardReport } from '../services/api/reports'
+import { PublicCampaignDetailsPage, PublicPortalPage } from './PublicPortalPage'
 
 function LoginPage({ onAuthenticated }: { onAuthenticated: (token: string) => void }) {
   const queryClient = useQueryClient()
@@ -369,6 +370,14 @@ function LoadingOrEmpty({ isLoading, label }: { isLoading: boolean; label: strin
 }
 
 const router = createBrowserRouter([
+  {
+    path: '/public',
+    element: <PublicPortalPage />,
+  },
+  {
+    path: '/public/campaigns/:slug',
+    element: <PublicCampaignDetailsPage />,
+  },
   {
     path: '/',
     element: <AdminPage />,
