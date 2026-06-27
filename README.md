@@ -2,11 +2,11 @@
 
 Awniq is an open-source aid operations platform for NGOs, charities, and small institutions.
 
-The project is being built with Laravel as the main backend application foundation. The current foundation includes identity, organizations, branches, users, roles, audit logs, beneficiaries, family members, case files, case notes, private case document upload/download, donors, campaigns, donations, allocations, payment transactions, receipts, warehouses, inventory items, stock lots, stock movements, and stock status reports.
+The project is being built with Laravel as the main backend application foundation. The current foundation includes identity, organizations, branches, users, roles, audit logs, beneficiaries, family members, case files, case notes, private case document upload/download, donors, campaigns, donations, allocations, payment transactions, receipts, warehouses, inventory items, stock lots, stock movements, stock status reports, aid batches, aid distributions, delivery proof metadata, and stock reservations.
 
 ## Current Status
 
-Phase 05: inventory and warehouse foundation.
+Phase 06: aid batches and distribution foundation.
 
 Implemented so far:
 
@@ -24,7 +24,8 @@ Implemented so far:
 - Donor, campaign, donation, allocation, payment transaction, and receipt endpoints
 - Manual donation confirmation with idempotency support
 - Warehouse, inventory item, stock lot, stock movement, low-stock, and expiring-stock endpoints
-- Demo identity, case-management, finance, and inventory seed data for manual testing
+- Aid batch, distribution, distribution item, approval, reservation, delivery, failure, reschedule, and proof endpoints
+- Demo identity, case-management, finance, inventory, and aid distribution seed data for manual testing
 - Basic backend and frontend test setup
 - GitHub Actions CI workflow
 
@@ -231,6 +232,21 @@ POST   /api/v1/stock/movements/adjust
 GET    /api/v1/stock/summary
 GET    /api/v1/stock/low-stock
 GET    /api/v1/stock/expiring
+GET    /api/v1/aid-batches
+POST   /api/v1/aid-batches
+POST   /api/v1/aid-batches/{aidBatch}/submit-approval
+POST   /api/v1/aid-batches/{aidBatch}/approve
+POST   /api/v1/aid-batches/{aidBatch}/cancel
+POST   /api/v1/aid-batches/{aidBatch}/complete
+GET    /api/v1/aid-batches/{aidBatch}/distributions
+POST   /api/v1/aid-batches/{aidBatch}/distributions
+GET    /api/v1/aid-batches/{aidBatch}/stock-check
+GET    /api/v1/aid-distributions/{distribution}
+POST   /api/v1/aid-distributions/{distribution}/items
+POST   /api/v1/aid-distributions/{distribution}/mark-delivered
+POST   /api/v1/aid-distributions/{distribution}/mark-failed
+POST   /api/v1/aid-distributions/{distribution}/reschedule
+POST   /api/v1/aid-distributions/{distribution}/proof
 ```
 
 ## Test Commands
@@ -270,9 +286,9 @@ Only `.env.example` files should be committed.
 
 Next implementation phase:
 
-1. Aid batches
-2. Aid distribution
-3. Beneficiary distribution receipts
-4. Distribution audit trail
+1. Dashboard metrics
+2. Internal reports
+3. CSV exports
+4. Report access controls
 
-Reporting, transparency, notifications, and release hardening will follow after the distribution foundation is stable.
+Transparency, notifications, and release hardening will follow after reporting is stable.

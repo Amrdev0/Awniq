@@ -93,6 +93,23 @@ class PermissionSeeder extends Seeder
         'stock_movements.view',
         'stock_movements.adjust',
         'stock_reports.view',
+        'aid_batches.view',
+        'aid_batches.create',
+        'aid_batches.update',
+        'aid_batches.delete',
+        'aid_batches.submit_approval',
+        'aid_batches.approve',
+        'aid_batches.cancel',
+        'aid_batches.complete',
+        'aid_distributions.view',
+        'aid_distributions.create',
+        'aid_distributions.update',
+        'aid_distributions.delete',
+        'aid_distributions.deliver',
+        'aid_distributions.fail',
+        'aid_distributions.reschedule',
+        'delivery_proofs.upload',
+        'delivery_proofs.view',
     ];
 
     public function run(): void

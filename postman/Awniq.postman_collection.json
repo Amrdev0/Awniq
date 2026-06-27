@@ -721,6 +721,258 @@
           }
         }
       ]
+    },
+    {
+      "name": "Aid Distribution",
+      "item": [
+        {
+          "name": "List Aid Batches",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/aid-batches"
+          }
+        },
+        {
+          "name": "Create Aid Batch",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"branch_id\": 1,\n  \"warehouse_id\": 1,\n  \"title\": \"Manual Food Basket Batch\",\n  \"description\": \"Manual Postman batch.\",\n  \"campaign_id\": 1,\n  \"scheduled_date\": \"2026-07-05\"\n}"
+            },
+            "url": "{{baseUrl}}/aid-batches"
+          }
+        },
+        {
+          "name": "Batch Distributions",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/aid-batches/1/distributions"
+          }
+        },
+        {
+          "name": "Eligible Beneficiaries",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/aid-batches/1/eligible-beneficiaries"
+          }
+        },
+        {
+          "name": "Stock Check",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/aid-batches/1/stock-check"
+          }
+        },
+        {
+          "name": "Add Distribution",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"beneficiary_id\": 1,\n  \"case_file_id\": 1,\n  \"scheduled_at\": \"2026-07-05T10:00:00Z\",\n  \"delivery_method\": \"pickup\",\n  \"notes\": \"Manual Postman distribution.\"\n}"
+            },
+            "url": "{{baseUrl}}/aid-batches/1/distributions"
+          }
+        },
+        {
+          "name": "Add Distribution Item",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"inventory_item_id\": 1,\n  \"quantity\": 10,\n  \"notes\": \"Manual rice allocation.\"\n}"
+            },
+            "url": "{{baseUrl}}/aid-distributions/1/items"
+          }
+        },
+        {
+          "name": "Submit Batch Approval",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/aid-batches/1/submit-approval"
+          }
+        },
+        {
+          "name": "Approve Batch",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Idempotency-Key",
+                "value": "postman-approve-batch-001"
+              }
+            ],
+            "url": "{{baseUrl}}/aid-batches/1/approve"
+          }
+        },
+        {
+          "name": "Mark Delivered",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "postman-deliver-001"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"proof_type\": \"manual\",\n  \"notes\": \"Manual Postman delivery confirmation.\"\n}"
+            },
+            "url": "{{baseUrl}}/aid-distributions/1/mark-delivered"
+          }
+        },
+        {
+          "name": "Mark Failed",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"failure_reason\": \"Beneficiary was not available.\",\n  \"notes\": \"Manual Postman failure.\"\n}"
+            },
+            "url": "{{baseUrl}}/aid-distributions/1/mark-failed"
+          }
+        }
+      ]
     }
   ]
 }

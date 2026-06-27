@@ -1,5 +1,7 @@
 <?php
 
+use App\Http\Controllers\Api\V1\AidBatchController;
+use App\Http\Controllers\Api\V1\AidDistributionController;
 use App\Http\Controllers\Api\V1\AuditLogController;
 use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BeneficiaryController;
@@ -9,6 +11,7 @@ use App\Http\Controllers\Api\V1\CampaignController;
 use App\Http\Controllers\Api\V1\CaseDocumentController;
 use App\Http\Controllers\Api\V1\CaseFileController;
 use App\Http\Controllers\Api\V1\CaseNoteController;
+use App\Http\Controllers\Api\V1\DistributionItemController;
 use App\Http\Controllers\Api\V1\DonationAllocationController;
 use App\Http\Controllers\Api\V1\DonationController;
 use App\Http\Controllers\Api\V1\DonorController;
@@ -166,4 +169,33 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::get('stock/summary', [StockReportController::class, 'summary'])->middleware('can:stock_reports.view');
     Route::get('stock/low-stock', [StockReportController::class, 'lowStock'])->middleware('can:stock_reports.view');
     Route::get('stock/expiring', [StockReportController::class, 'expiring'])->middleware('can:stock_reports.view');
+
+    Route::get('aid-batches', [AidBatchController::class, 'index'])->middleware('can:aid_batches.view');
+    Route::post('aid-batches', [AidBatchController::class, 'store'])->middleware('can:aid_batches.create');
+    Route::get('aid-batches/{aidBatch}', [AidBatchController::class, 'show'])->middleware('can:aid_batches.view');
+    Route::patch('aid-batches/{aidBatch}', [AidBatchController::class, 'update'])->middleware('can:aid_batches.update');
+    Route::delete('aid-batches/{aidBatch}', [AidBatchController::class, 'destroy'])->middleware('can:aid_batches.delete');
+    Route::post('aid-batches/{aidBatch}/submit-approval', [AidBatchController::class, 'submitApproval'])->middleware('can:aid_batches.submit_approval');
+    Route::post('aid-batches/{aidBatch}/approve', [AidBatchController::class, 'approve'])->middleware('can:aid_batches.approve');
+    Route::post('aid-batches/{aidBatch}/cancel', [AidBatchController::class, 'cancel'])->middleware('can:aid_batches.cancel');
+    Route::post('aid-batches/{aidBatch}/complete', [AidBatchController::class, 'complete'])->middleware('can:aid_batches.complete');
+    Route::get('aid-batches/{aidBatch}/eligible-beneficiaries', [AidBatchController::class, 'eligibleBeneficiaries'])->middleware('can:aid_distributions.create');
+    Route::get('aid-batches/{aidBatch}/stock-check', [AidBatchController::class, 'stockCheck'])->middleware('can:aid_batches.view');
+
+    Route::get('aid-batches/{aidBatch}/distributions', [AidBatchController::class, 'distributions'])->middleware('can:aid_distributions.view');
+    Route::post('aid-batches/{aidBatch}/distributions', [AidBatchController::class, 'storeDistribution'])->middleware('can:aid_distributions.create');
+    Route::patch('aid-batches/{aidBatch}/distributions/{distribution}', [AidDistributionController::class, 'updateInBatch'])->middleware('can:aid_distributions.update');
+    Route::delete('aid-batches/{aidBatch}/distributions/{distribution}', [AidDistributionController::class, 'destroyInBatch'])->middleware('can:aid_distributions.delete');
+
+    Route::get('aid-distributions/{distribution}', [AidDistributionController::class, 'show'])->middleware('can:aid_distributions.view');
+    Route::patch('aid-distributions/{distribution}', [AidDistributionController::class, 'update'])->middleware('can:aid_distributions.update');
+    Route::post('aid-distributions/{distribution}/mark-delivered', [AidDistributionController::class, 'markDelivered'])->middleware('can:aid_distributions.deliver');
+    Route::post('aid-distributions/{distribution}/mark-failed', [AidDistributionController::class, 'markFailed'])->middleware('can:aid_distributions.fail');
+    Route::post('aid-distributions/{distribution}/reschedule', [AidDistributionController::class, 'reschedule'])->middleware('can:aid_distributions.reschedule');
+    Route::post('aid-distributions/{distribution}/proof', [AidDistributionController::class, 'proof'])->middleware('can:delivery_proofs.upload');
+
+    Route::get('aid-distributions/{distribution}/items', [DistributionItemController::class, 'index'])->middleware('can:aid_distributions.view');
+    Route::post('aid-distributions/{distribution}/items', [DistributionItemController::class, 'store'])->middleware('can:aid_distributions.update');
+    Route::patch('aid-distributions/{distribution}/items/{item}', [DistributionItemController::class, 'update'])->middleware('can:aid_distributions.update');
+    Route::delete('aid-distributions/{distribution}/items/{item}', [DistributionItemController::class, 'destroy'])->middleware('can:aid_distributions.update');
 });

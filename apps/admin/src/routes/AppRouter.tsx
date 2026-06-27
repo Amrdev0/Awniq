@@ -6,6 +6,7 @@ import { Building2, FileText, GitBranch, ListChecks, LogOut, ShieldCheck, Users 
 import { clearStoredToken, getStoredToken, storeToken } from '../app/auth'
 import { EmptyState } from '../components/ui/EmptyState'
 import { LoadingState } from '../components/ui/LoadingState'
+import { getAidBatches } from '../services/api/aid'
 import { getMe, login, logout } from '../services/api/auth'
 import { getBeneficiaries, getCaseFiles } from '../services/api/cases'
 import { getCampaigns, getDonations, getDonors } from '../services/api/finance'
@@ -95,6 +96,7 @@ function AdminPage() {
   const stockSummary = useQuery({ queryKey: ['stock-summary'], queryFn: getStockSummary, enabled: Boolean(me.data) })
   const lowStock = useQuery({ queryKey: ['stock-low-stock'], queryFn: getLowStock, enabled: Boolean(me.data) })
   const expiringStock = useQuery({ queryKey: ['stock-expiring'], queryFn: getExpiringStock, enabled: Boolean(me.data) })
+  const aidBatches = useQuery({ queryKey: ['aid-batches'], queryFn: getAidBatches, enabled: Boolean(me.data) })
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSettled: () => {
@@ -266,6 +268,18 @@ function AdminPage() {
                 label="expiring stock lots"
                 render={(lot) =>
                   `${lot.inventory_item?.sku ?? 'Unknown item'} - ${lot.remaining_quantity} ${lot.inventory_item?.unit ?? ''} - ${lot.warehouse?.code ?? 'No warehouse'} - expires ${lot.expiry_date ?? '-'}`
+                }
+              />
+            </Panel>
+          </section>
+
+          <section className="lg:col-span-2">
+            <Panel icon={<ListChecks size={20} />} title="Aid Batches">
+              <SimpleList
+                items={aidBatches.data}
+                label="aid batches"
+                render={(batch) =>
+                  `${batch.batch_number} - ${batch.title} - ${batch.status} - ${batch.distributions_count ?? 0} distributions - ${batch.warehouse?.code ?? 'No warehouse'}`
                 }
               />
             </Panel>

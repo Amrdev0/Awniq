@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Awniq API
-  version: 0.5.0
-  description: API contract snapshot for the identity, case-management, finance, and inventory foundations.
+  version: 0.6.0
+  description: API contract snapshot for the identity, case-management, finance, inventory, and aid distribution foundations.
 servers:
   - url: http://localhost:8000/api/v1
 security:
@@ -812,6 +812,301 @@ paths:
       responses:
         "200":
           description: Expiring stock lots
+  /aid-batches:
+    get:
+      summary: List aid batches
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/Status"
+      responses:
+        "200":
+          description: Aid batch collection
+    post:
+      summary: Create an aid batch
+      tags: [Aid Distribution]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AidBatchRequest"
+      responses:
+        "200":
+          description: Created aid batch
+  /aid-batches/{aidBatch}:
+    get:
+      summary: Get an aid batch
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidBatchId"
+      responses:
+        "200":
+          description: Aid batch detail
+    patch:
+      summary: Update a draft or pending aid batch
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidBatchId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AidBatchRequest"
+      responses:
+        "200":
+          description: Updated aid batch
+    delete:
+      summary: Delete a draft aid batch
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidBatchId"
+      responses:
+        "200":
+          description: Deleted aid batch
+  /aid-batches/{aidBatch}/submit-approval:
+    post:
+      summary: Submit a draft batch for approval
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidBatchId"
+      responses:
+        "200":
+          description: Batch submitted for approval
+  /aid-batches/{aidBatch}/approve:
+    post:
+      summary: Approve a batch and reserve stock
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidBatchId"
+        - name: Idempotency-Key
+          in: header
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Approved batch with stock reservations
+  /aid-batches/{aidBatch}/cancel:
+    post:
+      summary: Cancel a batch and release reservations
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidBatchId"
+      responses:
+        "200":
+          description: Cancelled aid batch
+  /aid-batches/{aidBatch}/complete:
+    post:
+      summary: Complete a batch when all distributions are terminal
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidBatchId"
+      responses:
+        "200":
+          description: Completed aid batch
+  /aid-batches/{aidBatch}/eligible-beneficiaries:
+    get:
+      summary: List eligible beneficiaries for a batch
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidBatchId"
+        - $ref: "#/components/parameters/Search"
+      responses:
+        "200":
+          description: Approved beneficiary collection
+  /aid-batches/{aidBatch}/stock-check:
+    get:
+      summary: Check required versus available stock for a batch
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidBatchId"
+      responses:
+        "200":
+          description: Stock sufficiency rows
+  /aid-batches/{aidBatch}/distributions:
+    get:
+      summary: List distributions in a batch
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidBatchId"
+      responses:
+        "200":
+          description: Distribution collection
+    post:
+      summary: Add a distribution to a batch
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidBatchId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AidDistributionRequest"
+      responses:
+        "200":
+          description: Created distribution
+  /aid-batches/{aidBatch}/distributions/{distribution}:
+    patch:
+      summary: Update a distribution in a mutable batch
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidBatchId"
+        - $ref: "#/components/parameters/AidDistributionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AidDistributionRequest"
+      responses:
+        "200":
+          description: Updated distribution
+    delete:
+      summary: Delete a distribution from a mutable batch
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidBatchId"
+        - $ref: "#/components/parameters/AidDistributionId"
+      responses:
+        "200":
+          description: Deleted distribution
+  /aid-distributions/{distribution}:
+    get:
+      summary: Get a distribution
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidDistributionId"
+      responses:
+        "200":
+          description: Distribution detail
+    patch:
+      summary: Update a mutable distribution
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidDistributionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AidDistributionRequest"
+      responses:
+        "200":
+          description: Updated distribution
+  /aid-distributions/{distribution}/items:
+    get:
+      summary: List distribution items
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidDistributionId"
+      responses:
+        "200":
+          description: Distribution item collection
+    post:
+      summary: Add a distribution item
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidDistributionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DistributionItemRequest"
+      responses:
+        "200":
+          description: Created distribution item
+  /aid-distributions/{distribution}/items/{item}:
+    patch:
+      summary: Update a distribution item
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidDistributionId"
+        - $ref: "#/components/parameters/DistributionItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DistributionItemRequest"
+      responses:
+        "200":
+          description: Updated distribution item
+    delete:
+      summary: Delete a distribution item
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidDistributionId"
+        - $ref: "#/components/parameters/DistributionItemId"
+      responses:
+        "200":
+          description: Deleted distribution item
+  /aid-distributions/{distribution}/mark-delivered:
+    post:
+      summary: Mark a distribution delivered and consume reserved stock
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidDistributionId"
+        - name: Idempotency-Key
+          in: header
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkDeliveredRequest"
+      responses:
+        "200":
+          description: Delivered distribution
+  /aid-distributions/{distribution}/mark-failed:
+    post:
+      summary: Mark a distribution failed and release reserved stock
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidDistributionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/MarkFailedDistributionRequest"
+      responses:
+        "200":
+          description: Failed distribution
+  /aid-distributions/{distribution}/reschedule:
+    post:
+      summary: Reschedule a distribution
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidDistributionId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RescheduleDistributionRequest"
+      responses:
+        "200":
+          description: Rescheduled distribution
+  /aid-distributions/{distribution}/proof:
+    post:
+      summary: Attach proof metadata or files to a distribution
+      tags: [Aid Distribution]
+      parameters:
+        - $ref: "#/components/parameters/AidDistributionId"
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              $ref: "#/components/schemas/DeliveryProofRequest"
+      responses:
+        "200":
+          description: Proof attached
 components:
   securitySchemes:
     bearerAuth:
@@ -885,6 +1180,24 @@ components:
         type: integer
     StockMovementId:
       name: stockMovement
+      in: path
+      required: true
+      schema:
+        type: integer
+    AidBatchId:
+      name: aidBatch
+      in: path
+      required: true
+      schema:
+        type: integer
+    AidDistributionId:
+      name: distribution
+      in: path
+      required: true
+      schema:
+        type: integer
+    DistributionItemId:
+      name: item
       in: path
       required: true
       schema:
@@ -1191,6 +1504,122 @@ components:
           nullable: true
         notes:
           type: string
+    AidBatchRequest:
+      type: object
+      required: [title]
+      properties:
+        branch_id:
+          type: integer
+          nullable: true
+        warehouse_id:
+          type: integer
+          nullable: true
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        campaign_id:
+          type: integer
+          nullable: true
+        scheduled_date:
+          type: string
+          format: date
+          nullable: true
+    AidDistributionRequest:
+      type: object
+      required: [beneficiary_id, delivery_method]
+      properties:
+        beneficiary_id:
+          type: integer
+        case_file_id:
+          type: integer
+          nullable: true
+        scheduled_at:
+          type: string
+          format: date-time
+          nullable: true
+        delivery_method:
+          type: string
+          enum: [pickup, home_delivery, field_visit, partner_delivery, other]
+        notes:
+          type: string
+          nullable: true
+    DistributionItemRequest:
+      type: object
+      properties:
+        inventory_item_id:
+          type: integer
+          nullable: true
+        stock_lot_id:
+          type: integer
+          nullable: true
+        quantity:
+          type: number
+          nullable: true
+        cash_amount:
+          type: number
+          nullable: true
+        currency:
+          type: string
+          nullable: true
+          example: EGP
+        notes:
+          type: string
+          nullable: true
+    MarkDeliveredRequest:
+      type: object
+      required: [proof_type]
+      properties:
+        proof_type:
+          type: string
+          enum: [photo, signature, manual, otp, qr]
+        otp_code:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+    DeliveryProofRequest:
+      type: object
+      required: [proof_type]
+      properties:
+        proof_type:
+          type: string
+          enum: [photo, signature, manual, otp, qr]
+        file:
+          type: string
+          format: binary
+          nullable: true
+        beneficiary_signature_file:
+          type: string
+          format: binary
+          nullable: true
+        otp_code:
+          type: string
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+    MarkFailedDistributionRequest:
+      type: object
+      required: [failure_reason]
+      properties:
+        failure_reason:
+          type: string
+        notes:
+          type: string
+          nullable: true
+    RescheduleDistributionRequest:
+      type: object
+      required: [scheduled_at]
+      properties:
+        scheduled_at:
+          type: string
+          format: date-time
+        notes:
+          type: string
+          nullable: true
     RejectionReasonRequest:
       type: object
       required: [reason]

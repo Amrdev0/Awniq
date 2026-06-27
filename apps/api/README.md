@@ -161,6 +161,40 @@ Stock quantity changes are recorded through stock movements. Direct stock quanti
 
 The seeded database includes two warehouses, four inventory items, five opening stock lots, one low-stock item, and one lot expiring within 30 days.
 
+Protected aid distribution endpoints:
+
+```txt
+GET    /api/v1/aid-batches
+POST   /api/v1/aid-batches
+GET    /api/v1/aid-batches/{aidBatch}
+PATCH  /api/v1/aid-batches/{aidBatch}
+DELETE /api/v1/aid-batches/{aidBatch}
+POST   /api/v1/aid-batches/{aidBatch}/submit-approval
+POST   /api/v1/aid-batches/{aidBatch}/approve
+POST   /api/v1/aid-batches/{aidBatch}/cancel
+POST   /api/v1/aid-batches/{aidBatch}/complete
+GET    /api/v1/aid-batches/{aidBatch}/eligible-beneficiaries
+GET    /api/v1/aid-batches/{aidBatch}/stock-check
+GET    /api/v1/aid-batches/{aidBatch}/distributions
+POST   /api/v1/aid-batches/{aidBatch}/distributions
+PATCH  /api/v1/aid-batches/{aidBatch}/distributions/{distribution}
+DELETE /api/v1/aid-batches/{aidBatch}/distributions/{distribution}
+GET    /api/v1/aid-distributions/{distribution}
+PATCH  /api/v1/aid-distributions/{distribution}
+GET    /api/v1/aid-distributions/{distribution}/items
+POST   /api/v1/aid-distributions/{distribution}/items
+PATCH  /api/v1/aid-distributions/{distribution}/items/{item}
+DELETE /api/v1/aid-distributions/{distribution}/items/{item}
+POST   /api/v1/aid-distributions/{distribution}/mark-delivered
+POST   /api/v1/aid-distributions/{distribution}/mark-failed
+POST   /api/v1/aid-distributions/{distribution}/reschedule
+POST   /api/v1/aid-distributions/{distribution}/proof
+```
+
+Batch approval reserves stock transactionally and creates `reserved` stock movements. Delivery confirmation converts reservations to `distributed` movements. Failed or cancelled distributions release reserved stock through `released` movements.
+
+The seeded database includes one draft aid batch with one approved beneficiary and one rice distribution item. Submit and approve it manually to test stock reservation.
+
 ## Commands
 
 ```bash

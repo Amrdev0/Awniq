@@ -21,6 +21,7 @@ class DatabaseSeeder extends Seeder
             DemoCaseManagementSeeder::class,
             DemoFinanceSeeder::class,
             DemoInventorySeeder::class,
+            DemoAidDistributionSeeder::class,
         ]);
     }
 }
