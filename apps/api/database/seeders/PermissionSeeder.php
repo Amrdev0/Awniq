@@ -80,6 +80,19 @@ class PermissionSeeder extends Seeder
         'receipts.view',
         'receipts.generate',
         'finance_reports.view',
+        'warehouses.view',
+        'warehouses.create',
+        'warehouses.update',
+        'warehouses.delete',
+        'inventory_items.view',
+        'inventory_items.create',
+        'inventory_items.update',
+        'inventory_items.delete',
+        'stock_lots.view',
+        'stock_lots.receive',
+        'stock_movements.view',
+        'stock_movements.adjust',
+        'stock_reports.view',
     ];
 
     public function run(): void

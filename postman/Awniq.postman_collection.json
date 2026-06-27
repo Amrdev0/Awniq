@@ -560,6 +560,167 @@
           }
         }
       ]
+    },
+    {
+      "name": "Inventory",
+      "item": [
+        {
+          "name": "List Warehouses",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/warehouses"
+          }
+        },
+        {
+          "name": "List Inventory Items",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/inventory-items"
+          }
+        },
+        {
+          "name": "List Stock Lots",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/stock/lots"
+          }
+        },
+        {
+          "name": "Receive Stock",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"warehouse_id\": 1,\n  \"inventory_item_id\": 1,\n  \"quantity\": 25,\n  \"source_type\": \"donation_in_kind\",\n  \"source_id\": 9001,\n  \"expiry_date\": \"2026-12-31\",\n  \"received_at\": \"2026-06-27T12:00:00Z\",\n  \"notes\": \"Manual Postman stock receipt.\"\n}"
+            },
+            "url": "{{baseUrl}}/stock/movements/receive"
+          }
+        },
+        {
+          "name": "Adjust Stock",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"warehouse_id\": 1,\n  \"inventory_item_id\": 1,\n  \"stock_lot_id\": 1,\n  \"movement_type\": \"adjustment_out\",\n  \"quantity\": 1,\n  \"notes\": \"Manual Postman stock correction.\"\n}"
+            },
+            "url": "{{baseUrl}}/stock/movements/adjust"
+          }
+        },
+        {
+          "name": "Stock Summary",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/stock/summary"
+          }
+        },
+        {
+          "name": "Low Stock",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/stock/low-stock"
+          }
+        },
+        {
+          "name": "Expiring Stock",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/stock/expiring?days=30"
+          }
+        }
+      ]
     }
   ]
 }

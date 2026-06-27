@@ -130,6 +130,37 @@ Donation confirmation supports an optional `Idempotency-Key` header so repeated 
 
 The seeded database includes four donors, three campaigns, five donations, allocations, paid transactions, and receipt records.
 
+Protected inventory endpoints:
+
+```txt
+GET    /api/v1/warehouses
+POST   /api/v1/warehouses
+GET    /api/v1/warehouses/{warehouse}
+PATCH  /api/v1/warehouses/{warehouse}
+DELETE /api/v1/warehouses/{warehouse}
+GET    /api/v1/inventory-items
+POST   /api/v1/inventory-items
+GET    /api/v1/inventory-items/{inventoryItem}
+PATCH  /api/v1/inventory-items/{inventoryItem}
+DELETE /api/v1/inventory-items/{inventoryItem}
+GET    /api/v1/inventory-items/{inventoryItem}/stock
+GET    /api/v1/inventory-items/{inventoryItem}/movements
+GET    /api/v1/stock/lots
+POST   /api/v1/stock/lots
+GET    /api/v1/stock/lots/{stockLot}
+GET    /api/v1/stock/movements
+POST   /api/v1/stock/movements/receive
+POST   /api/v1/stock/movements/adjust
+GET    /api/v1/stock/movements/{stockMovement}
+GET    /api/v1/stock/summary
+GET    /api/v1/stock/low-stock
+GET    /api/v1/stock/expiring
+```
+
+Stock quantity changes are recorded through stock movements. Direct stock quantity edits are intentionally not exposed.
+
+The seeded database includes two warehouses, four inventory items, five opening stock lots, one low-stock item, and one lot expiring within 30 days.
+
 ## Commands
 
 ```bash

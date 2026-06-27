@@ -10,6 +10,7 @@ import { getMe, login, logout } from '../services/api/auth'
 import { getBeneficiaries, getCaseFiles } from '../services/api/cases'
 import { getCampaigns, getDonations, getDonors } from '../services/api/finance'
 import { getAuditLogs, getBranches, getOrganization, getRoles, getUsers } from '../services/api/identity'
+import { getExpiringStock, getInventoryItems, getLowStock, getStockSummary, getWarehouses } from '../services/api/inventory'
 
 function LoginPage({ onAuthenticated }: { onAuthenticated: (token: string) => void }) {
   const queryClient = useQueryClient()
@@ -89,6 +90,11 @@ function AdminPage() {
   const donors = useQuery({ queryKey: ['donors'], queryFn: getDonors, enabled: Boolean(me.data) })
   const campaigns = useQuery({ queryKey: ['campaigns'], queryFn: getCampaigns, enabled: Boolean(me.data) })
   const donations = useQuery({ queryKey: ['donations'], queryFn: getDonations, enabled: Boolean(me.data) })
+  const warehouses = useQuery({ queryKey: ['warehouses'], queryFn: getWarehouses, enabled: Boolean(me.data) })
+  const inventoryItems = useQuery({ queryKey: ['inventory-items'], queryFn: getInventoryItems, enabled: Boolean(me.data) })
+  const stockSummary = useQuery({ queryKey: ['stock-summary'], queryFn: getStockSummary, enabled: Boolean(me.data) })
+  const lowStock = useQuery({ queryKey: ['stock-low-stock'], queryFn: getLowStock, enabled: Boolean(me.data) })
+  const expiringStock = useQuery({ queryKey: ['stock-expiring'], queryFn: getExpiringStock, enabled: Boolean(me.data) })
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSettled: () => {
@@ -216,6 +222,50 @@ function AdminPage() {
                 label="donations"
                 render={(donation) =>
                   `${donation.donation_number} - ${donation.donor?.name ?? 'Anonymous'} - ${donation.amount} ${donation.currency} - ${donation.payment_status}/${donation.donation_status}`
+                }
+              />
+            </Panel>
+          </section>
+
+          <Panel icon={<Building2 size={20} />} title="Warehouses">
+            <SimpleList
+              items={warehouses.data}
+              label="warehouses"
+              render={(warehouse) => `${warehouse.code} - ${warehouse.name} - ${warehouse.status} - ${warehouse.stock_lots_count ?? 0} lots`}
+            />
+          </Panel>
+
+          <Panel icon={<ListChecks size={20} />} title="Inventory Items">
+            <SimpleList
+              items={inventoryItems.data}
+              label="inventory items"
+              render={(item) => `${item.sku} - ${item.name} - ${item.category} - min ${item.minimum_stock_level} ${item.unit}`}
+            />
+          </Panel>
+
+          <Panel icon={<ListChecks size={20} />} title="Stock Summary">
+            <SimpleList
+              items={stockSummary.data}
+              label="stock summary rows"
+              render={(row) => `${row.sku} - ${row.available_quantity} ${row.unit} available - ${row.low_stock ? 'low stock' : 'healthy'}`}
+            />
+          </Panel>
+
+          <Panel icon={<FileText size={20} />} title="Low Stock">
+            <SimpleList
+              items={lowStock.data}
+              label="low stock rows"
+              render={(row) => `${row.sku} - ${row.available_quantity}/${row.minimum_stock_level} ${row.unit}`}
+            />
+          </Panel>
+
+          <section className="lg:col-span-2">
+            <Panel icon={<FileText size={20} />} title="Expiring Stock">
+              <SimpleList
+                items={expiringStock.data}
+                label="expiring stock lots"
+                render={(lot) =>
+                  `${lot.inventory_item?.sku ?? 'Unknown item'} - ${lot.remaining_quantity} ${lot.inventory_item?.unit ?? ''} - ${lot.warehouse?.code ?? 'No warehouse'} - expires ${lot.expiry_date ?? '-'}`
                 }
               />
             </Panel>

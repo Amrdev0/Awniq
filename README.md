@@ -2,11 +2,11 @@
 
 Awniq is an open-source aid operations platform for NGOs, charities, and small institutions.
 
-The project is being built with Laravel as the main backend application foundation. The current foundation includes identity, organizations, branches, users, roles, audit logs, beneficiaries, family members, case files, case notes, private case document upload/download, donors, campaigns, donations, allocations, payment transactions, and receipts.
+The project is being built with Laravel as the main backend application foundation. The current foundation includes identity, organizations, branches, users, roles, audit logs, beneficiaries, family members, case files, case notes, private case document upload/download, donors, campaigns, donations, allocations, payment transactions, receipts, warehouses, inventory items, stock lots, stock movements, and stock status reports.
 
 ## Current Status
 
-Phase 04: donor, campaign, donation, and allocation foundation.
+Phase 05: inventory and warehouse foundation.
 
 Implemented so far:
 
@@ -23,7 +23,8 @@ Implemented so far:
 - Beneficiary and case review/approval workflows
 - Donor, campaign, donation, allocation, payment transaction, and receipt endpoints
 - Manual donation confirmation with idempotency support
-- Demo identity, case-management, and finance seed data for manual testing
+- Warehouse, inventory item, stock lot, stock movement, low-stock, and expiring-stock endpoints
+- Demo identity, case-management, finance, and inventory seed data for manual testing
 - Basic backend and frontend test setup
 - GitHub Actions CI workflow
 
@@ -218,6 +219,18 @@ GET    /api/v1/donations
 POST   /api/v1/donations
 POST   /api/v1/donations/{donation}/confirm
 GET    /api/v1/donations/{donation}/receipt
+GET    /api/v1/warehouses
+POST   /api/v1/warehouses
+GET    /api/v1/inventory-items
+POST   /api/v1/inventory-items
+GET    /api/v1/stock/lots
+POST   /api/v1/stock/lots
+GET    /api/v1/stock/movements
+POST   /api/v1/stock/movements/receive
+POST   /api/v1/stock/movements/adjust
+GET    /api/v1/stock/summary
+GET    /api/v1/stock/low-stock
+GET    /api/v1/stock/expiring
 ```
 
 ## Test Commands
@@ -257,9 +270,9 @@ Only `.env.example` files should be committed.
 
 Next implementation phase:
 
-1. Warehouses
-2. Inventory items
-3. Stock lots
-4. Stock movements
+1. Aid batches
+2. Aid distribution
+3. Beneficiary distribution receipts
+4. Distribution audit trail
 
-Aid distribution, reporting, transparency, notifications, and release hardening will follow after the beneficiary/case, donation, and inventory foundations are stable.
+Reporting, transparency, notifications, and release hardening will follow after the distribution foundation is stable.

@@ -13,11 +13,16 @@ use App\Http\Controllers\Api\V1\DonationAllocationController;
 use App\Http\Controllers\Api\V1\DonationController;
 use App\Http\Controllers\Api\V1\DonorController;
 use App\Http\Controllers\Api\V1\HealthController;
+use App\Http\Controllers\Api\V1\InventoryItemController;
 use App\Http\Controllers\Api\V1\OrganizationController;
 use App\Http\Controllers\Api\V1\PaymentTransactionController;
 use App\Http\Controllers\Api\V1\PermissionController;
 use App\Http\Controllers\Api\V1\RoleController;
+use App\Http\Controllers\Api\V1\StockLotController;
+use App\Http\Controllers\Api\V1\StockMovementController;
+use App\Http\Controllers\Api\V1\StockReportController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\WarehouseController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('health', HealthController::class)->name('api.v1.health');
@@ -134,4 +139,31 @@ Route::middleware('auth:sanctum')->group(function (): void {
 
     Route::get('donations/{donation}/payment-transactions', [PaymentTransactionController::class, 'donationIndex'])->middleware('can:payment_transactions.view');
     Route::get('payment-transactions/{paymentTransaction}', [PaymentTransactionController::class, 'show'])->middleware('can:payment_transactions.view');
+
+    Route::get('warehouses', [WarehouseController::class, 'index'])->middleware('can:warehouses.view');
+    Route::post('warehouses', [WarehouseController::class, 'store'])->middleware('can:warehouses.create');
+    Route::get('warehouses/{warehouse}', [WarehouseController::class, 'show'])->middleware('can:warehouses.view');
+    Route::patch('warehouses/{warehouse}', [WarehouseController::class, 'update'])->middleware('can:warehouses.update');
+    Route::delete('warehouses/{warehouse}', [WarehouseController::class, 'destroy'])->middleware('can:warehouses.delete');
+
+    Route::get('inventory-items', [InventoryItemController::class, 'index'])->middleware('can:inventory_items.view');
+    Route::post('inventory-items', [InventoryItemController::class, 'store'])->middleware('can:inventory_items.create');
+    Route::get('inventory-items/{inventoryItem}/stock', [InventoryItemController::class, 'stock'])->middleware('can:stock_reports.view');
+    Route::get('inventory-items/{inventoryItem}/movements', [InventoryItemController::class, 'movements'])->middleware('can:stock_movements.view');
+    Route::get('inventory-items/{inventoryItem}', [InventoryItemController::class, 'show'])->middleware('can:inventory_items.view');
+    Route::patch('inventory-items/{inventoryItem}', [InventoryItemController::class, 'update'])->middleware('can:inventory_items.update');
+    Route::delete('inventory-items/{inventoryItem}', [InventoryItemController::class, 'destroy'])->middleware('can:inventory_items.delete');
+
+    Route::get('stock/lots', [StockLotController::class, 'index'])->middleware('can:stock_lots.view');
+    Route::post('stock/lots', [StockLotController::class, 'store'])->middleware('can:stock_lots.receive');
+    Route::get('stock/lots/{stockLot}', [StockLotController::class, 'show'])->middleware('can:stock_lots.view');
+
+    Route::get('stock/movements', [StockMovementController::class, 'index'])->middleware('can:stock_movements.view');
+    Route::post('stock/movements/receive', [StockMovementController::class, 'receive'])->middleware('can:stock_lots.receive');
+    Route::post('stock/movements/adjust', [StockMovementController::class, 'adjust'])->middleware('can:stock_movements.adjust');
+    Route::get('stock/movements/{stockMovement}', [StockMovementController::class, 'show'])->middleware('can:stock_movements.view');
+
+    Route::get('stock/summary', [StockReportController::class, 'summary'])->middleware('can:stock_reports.view');
+    Route::get('stock/low-stock', [StockReportController::class, 'lowStock'])->middleware('can:stock_reports.view');
+    Route::get('stock/expiring', [StockReportController::class, 'expiring'])->middleware('can:stock_reports.view');
 });

@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Awniq API
-  version: 0.3.0
-  description: API contract snapshot for the identity, beneficiary, and case-management foundation.
+  version: 0.5.0
+  description: API contract snapshot for the identity, case-management, finance, and inventory foundations.
 servers:
   - url: http://localhost:8000/api/v1
 security:
@@ -542,6 +542,276 @@ paths:
       responses:
         "200":
           description: Payment transaction detail
+  /warehouses:
+    get:
+      summary: List warehouses
+      tags: [Inventory]
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/Status"
+        - name: branch_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Warehouse collection
+    post:
+      summary: Create a warehouse
+      tags: [Inventory]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WarehouseRequest"
+      responses:
+        "200":
+          description: Created warehouse
+  /warehouses/{warehouse}:
+    get:
+      summary: Get a warehouse
+      tags: [Inventory]
+      parameters:
+        - $ref: "#/components/parameters/WarehouseId"
+      responses:
+        "200":
+          description: Warehouse detail
+    patch:
+      summary: Update a warehouse
+      tags: [Inventory]
+      parameters:
+        - $ref: "#/components/parameters/WarehouseId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/WarehouseRequest"
+      responses:
+        "200":
+          description: Updated warehouse
+    delete:
+      summary: Delete an empty warehouse
+      tags: [Inventory]
+      parameters:
+        - $ref: "#/components/parameters/WarehouseId"
+      responses:
+        "200":
+          description: Deleted warehouse
+  /inventory-items:
+    get:
+      summary: List inventory items
+      tags: [Inventory]
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/Status"
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: track_expiry
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Inventory item collection
+    post:
+      summary: Create an inventory item
+      tags: [Inventory]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryItemRequest"
+      responses:
+        "200":
+          description: Created inventory item
+  /inventory-items/{inventoryItem}:
+    get:
+      summary: Get an inventory item
+      tags: [Inventory]
+      parameters:
+        - $ref: "#/components/parameters/InventoryItemId"
+      responses:
+        "200":
+          description: Inventory item detail
+    patch:
+      summary: Update an inventory item
+      tags: [Inventory]
+      parameters:
+        - $ref: "#/components/parameters/InventoryItemId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/InventoryItemRequest"
+      responses:
+        "200":
+          description: Updated inventory item
+    delete:
+      summary: Delete an inventory item without stock history
+      tags: [Inventory]
+      parameters:
+        - $ref: "#/components/parameters/InventoryItemId"
+      responses:
+        "200":
+          description: Deleted inventory item
+  /inventory-items/{inventoryItem}/stock:
+    get:
+      summary: Get stock summary for an inventory item
+      tags: [Inventory]
+      parameters:
+        - $ref: "#/components/parameters/InventoryItemId"
+        - name: warehouse_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Inventory item stock summary
+  /inventory-items/{inventoryItem}/movements:
+    get:
+      summary: List stock movements for an inventory item
+      tags: [Inventory]
+      parameters:
+        - $ref: "#/components/parameters/InventoryItemId"
+      responses:
+        "200":
+          description: Stock movement collection
+  /stock/lots:
+    get:
+      summary: List stock lots
+      tags: [Inventory]
+      parameters:
+        - name: warehouse_id
+          in: query
+          schema:
+            type: integer
+        - name: inventory_item_id
+          in: query
+          schema:
+            type: integer
+        - name: available_only
+          in: query
+          schema:
+            type: boolean
+      responses:
+        "200":
+          description: Stock lot collection
+    post:
+      summary: Receive stock and create a stock lot
+      tags: [Inventory]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReceiveStockRequest"
+      responses:
+        "200":
+          description: Created stock lot
+  /stock/lots/{stockLot}:
+    get:
+      summary: Get a stock lot
+      tags: [Inventory]
+      parameters:
+        - $ref: "#/components/parameters/StockLotId"
+      responses:
+        "200":
+          description: Stock lot detail
+  /stock/movements:
+    get:
+      summary: List stock movements
+      tags: [Inventory]
+      parameters:
+        - name: warehouse_id
+          in: query
+          schema:
+            type: integer
+        - name: inventory_item_id
+          in: query
+          schema:
+            type: integer
+        - name: movement_type
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Stock movement collection
+  /stock/movements/receive:
+    post:
+      summary: Receive stock and record a stock-in movement
+      tags: [Inventory]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ReceiveStockRequest"
+      responses:
+        "200":
+          description: Created stock lot
+  /stock/movements/adjust:
+    post:
+      summary: Record a stock adjustment
+      tags: [Inventory]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/AdjustStockRequest"
+      responses:
+        "200":
+          description: Created stock movement
+  /stock/movements/{stockMovement}:
+    get:
+      summary: Get a stock movement
+      tags: [Inventory]
+      parameters:
+        - $ref: "#/components/parameters/StockMovementId"
+      responses:
+        "200":
+          description: Stock movement detail
+  /stock/summary:
+    get:
+      summary: List available and reserved stock by item
+      tags: [Inventory]
+      parameters:
+        - name: warehouse_id
+          in: query
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Stock summary rows
+  /stock/low-stock:
+    get:
+      summary: List inventory items at or below minimum stock
+      tags: [Inventory]
+      responses:
+        "200":
+          description: Low stock rows
+  /stock/expiring:
+    get:
+      summary: List lots expiring within a date window
+      tags: [Inventory]
+      parameters:
+        - name: days
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 365
+            default: 30
+      responses:
+        "200":
+          description: Expiring stock lots
 components:
   securitySchemes:
     bearerAuth:
@@ -591,6 +861,30 @@ components:
         type: integer
     PaymentTransactionId:
       name: paymentTransaction
+      in: path
+      required: true
+      schema:
+        type: integer
+    WarehouseId:
+      name: warehouse
+      in: path
+      required: true
+      schema:
+        type: integer
+    InventoryItemId:
+      name: inventoryItem
+      in: path
+      required: true
+      schema:
+        type: integer
+    StockLotId:
+      name: stockLot
+      in: path
+      required: true
+      schema:
+        type: integer
+    StockMovementId:
+      name: stockMovement
       in: path
       required: true
       schema:
@@ -800,6 +1094,103 @@ components:
           type: string
           format: date-time
           nullable: true
+    WarehouseRequest:
+      type: object
+      required: [name, code]
+      properties:
+        branch_id:
+          type: integer
+          nullable: true
+        name:
+          type: string
+        code:
+          type: string
+          example: CAI-MAIN
+        address:
+          type: string
+          nullable: true
+        manager_user_id:
+          type: integer
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive]
+    InventoryItemRequest:
+      type: object
+      required: [sku, name, category, unit]
+      properties:
+        sku:
+          type: string
+          example: FOOD-RICE-5KG
+        name:
+          type: string
+        category:
+          type: string
+          example: food
+        unit:
+          type: string
+          example: bag
+        description:
+          type: string
+          nullable: true
+        minimum_stock_level:
+          type: number
+          minimum: 0
+        track_expiry:
+          type: boolean
+        status:
+          type: string
+          enum: [active, inactive]
+    ReceiveStockRequest:
+      type: object
+      required: [warehouse_id, inventory_item_id, quantity, source_type, received_at]
+      properties:
+        warehouse_id:
+          type: integer
+        inventory_item_id:
+          type: integer
+        quantity:
+          type: number
+          minimum: 0
+        source_type:
+          type: string
+          enum: [opening_balance, purchase, donation_in_kind, transfer, adjustment, other]
+        source_id:
+          type: integer
+          nullable: true
+        expiry_date:
+          type: string
+          format: date
+          nullable: true
+        received_at:
+          type: string
+          format: date-time
+        notes:
+          type: string
+          nullable: true
+    AdjustStockRequest:
+      type: object
+      required: [warehouse_id, inventory_item_id, movement_type, quantity, notes]
+      properties:
+        warehouse_id:
+          type: integer
+        inventory_item_id:
+          type: integer
+        stock_lot_id:
+          type: integer
+          nullable: true
+        movement_type:
+          type: string
+          enum: [adjustment_in, adjustment_out, damaged, expired]
+        quantity:
+          type: number
+          minimum: 0
+        expiry_date:
+          type: string
+          format: date
+          nullable: true
+        notes:
+          type: string
     RejectionReasonRequest:
       type: object
       required: [reason]
