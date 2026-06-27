@@ -93,6 +93,43 @@ DELETE /api/v1/case-files/{caseFile}/documents/{caseDocument}
 
 The seeded database includes five beneficiaries, family members, five case files, and internal notes for manual testing.
 
+Protected finance endpoints:
+
+```txt
+GET    /api/v1/donors
+POST   /api/v1/donors
+GET    /api/v1/donors/{donor}
+PATCH  /api/v1/donors/{donor}
+DELETE /api/v1/donors/{donor}
+GET    /api/v1/donors/{donor}/donations
+GET    /api/v1/campaigns
+POST   /api/v1/campaigns
+GET    /api/v1/campaigns/{campaign}
+PATCH  /api/v1/campaigns/{campaign}
+DELETE /api/v1/campaigns/{campaign}
+POST   /api/v1/campaigns/{campaign}/activate
+POST   /api/v1/campaigns/{campaign}/pause
+POST   /api/v1/campaigns/{campaign}/complete
+POST   /api/v1/campaigns/{campaign}/cancel
+GET    /api/v1/donations
+POST   /api/v1/donations
+GET    /api/v1/donations/{donation}
+PATCH  /api/v1/donations/{donation}
+POST   /api/v1/donations/{donation}/confirm
+POST   /api/v1/donations/{donation}/cancel
+POST   /api/v1/donations/{donation}/refund
+GET    /api/v1/donations/{donation}/receipt
+POST   /api/v1/donations/{donation}/receipt
+GET    /api/v1/donations/{donation}/allocations
+POST   /api/v1/donations/{donation}/allocations
+GET    /api/v1/donations/{donation}/payment-transactions
+GET    /api/v1/payment-transactions/{paymentTransaction}
+```
+
+Donation confirmation supports an optional `Idempotency-Key` header so repeated confirmation requests return the same stored result without double-counting campaign totals.
+
+The seeded database includes four donors, three campaigns, five donations, allocations, paid transactions, and receipt records.
+
 ## Commands
 
 ```bash

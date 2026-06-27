@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -8,9 +8,10 @@ import { EmptyState } from '../components/ui/EmptyState'
 import { LoadingState } from '../components/ui/LoadingState'
 import { getMe, login, logout } from '../services/api/auth'
 import { getBeneficiaries, getCaseFiles } from '../services/api/cases'
+import { getCampaigns, getDonations, getDonors } from '../services/api/finance'
 import { getAuditLogs, getBranches, getOrganization, getRoles, getUsers } from '../services/api/identity'
 
-function LoginPage() {
+function LoginPage({ onAuthenticated }: { onAuthenticated: (token: string) => void }) {
   const queryClient = useQueryClient()
   const [email, setEmail] = useState('admin@awniq.test')
   const [password, setPassword] = useState('Password123!')
@@ -18,6 +19,7 @@ function LoginPage() {
     mutationFn: login,
     onSuccess: (response) => {
       storeToken(response.data.token)
+      onAuthenticated(response.data.token)
       void queryClient.invalidateQueries()
     },
   })
@@ -75,7 +77,8 @@ function LoginPage() {
 
 function AdminPage() {
   const queryClient = useQueryClient()
-  const me = useQuery({ queryKey: ['me'], queryFn: getMe, enabled: Boolean(getStoredToken()) })
+  const [authToken, setAuthToken] = useState(() => getStoredToken())
+  const me = useQuery({ queryKey: ['me'], queryFn: getMe, enabled: Boolean(authToken) })
   const organization = useQuery({ queryKey: ['organization'], queryFn: getOrganization, enabled: Boolean(me.data) })
   const branches = useQuery({ queryKey: ['branches'], queryFn: getBranches, enabled: Boolean(me.data) })
   const users = useQuery({ queryKey: ['users'], queryFn: getUsers, enabled: Boolean(me.data) })
@@ -83,17 +86,27 @@ function AdminPage() {
   const auditLogs = useQuery({ queryKey: ['audit-logs'], queryFn: getAuditLogs, enabled: Boolean(me.data) })
   const beneficiaries = useQuery({ queryKey: ['beneficiaries'], queryFn: getBeneficiaries, enabled: Boolean(me.data) })
   const caseFiles = useQuery({ queryKey: ['case-files'], queryFn: getCaseFiles, enabled: Boolean(me.data) })
+  const donors = useQuery({ queryKey: ['donors'], queryFn: getDonors, enabled: Boolean(me.data) })
+  const campaigns = useQuery({ queryKey: ['campaigns'], queryFn: getCampaigns, enabled: Boolean(me.data) })
+  const donations = useQuery({ queryKey: ['donations'], queryFn: getDonations, enabled: Boolean(me.data) })
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSettled: () => {
       clearStoredToken()
-      void queryClient.clear()
-      window.location.reload()
+      queryClient.clear()
+      setAuthToken(null)
     },
   })
 
-  if (!getStoredToken()) {
-    return <LoginPage />
+  useEffect(() => {
+    if (me.isError) {
+      clearStoredToken()
+      setAuthToken(null)
+    }
+  }, [me.isError])
+
+  if (!authToken) {
+    return <LoginPage onAuthenticated={setAuthToken} />
   }
 
   if (me.isPending) {
@@ -105,9 +118,7 @@ function AdminPage() {
   }
 
   if (me.isError) {
-    clearStoredToken()
-
-    return <LoginPage />
+    return <LoginPage onAuthenticated={setAuthToken} />
   }
 
   return (
@@ -179,6 +190,36 @@ function AdminPage() {
               }
             />
           </Panel>
+
+          <Panel icon={<Users size={20} />} title="Donors">
+            <SimpleList
+              items={donors.data}
+              label="donors"
+              render={(donor) => `${donor.name} - ${donor.donor_type} - ${donor.status} - ${donor.donations_count ?? 0} donations`}
+            />
+          </Panel>
+
+          <Panel icon={<ListChecks size={20} />} title="Campaigns">
+            <SimpleList
+              items={campaigns.data}
+              label="campaigns"
+              render={(campaign) =>
+                `${campaign.title} - ${campaign.status} - ${campaign.collected_amount}/${campaign.goal_amount} ${campaign.currency} - ${campaign.visibility}`
+              }
+            />
+          </Panel>
+
+          <section className="lg:col-span-2">
+            <Panel icon={<FileText size={20} />} title="Donations">
+              <SimpleList
+                items={donations.data}
+                label="donations"
+                render={(donation) =>
+                  `${donation.donation_number} - ${donation.donor?.name ?? 'Anonymous'} - ${donation.amount} ${donation.currency} - ${donation.payment_status}/${donation.donation_status}`
+                }
+              />
+            </Panel>
+          </section>
 
           <section className="lg:col-span-2">
             <Panel icon={<ListChecks size={20} />} title="Recent Audit Logs">

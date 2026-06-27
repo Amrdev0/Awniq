@@ -5,11 +5,16 @@ use App\Http\Controllers\Api\V1\AuthController;
 use App\Http\Controllers\Api\V1\BeneficiaryController;
 use App\Http\Controllers\Api\V1\BeneficiaryFamilyMemberController;
 use App\Http\Controllers\Api\V1\BranchController;
+use App\Http\Controllers\Api\V1\CampaignController;
 use App\Http\Controllers\Api\V1\CaseDocumentController;
 use App\Http\Controllers\Api\V1\CaseFileController;
 use App\Http\Controllers\Api\V1\CaseNoteController;
+use App\Http\Controllers\Api\V1\DonationAllocationController;
+use App\Http\Controllers\Api\V1\DonationController;
+use App\Http\Controllers\Api\V1\DonorController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\OrganizationController;
+use App\Http\Controllers\Api\V1\PaymentTransactionController;
 use App\Http\Controllers\Api\V1\PermissionController;
 use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\UserController;
@@ -94,4 +99,39 @@ Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('case-files/{caseFile}/documents', [CaseDocumentController::class, 'store'])->middleware('can:case_documents.upload');
     Route::get('case-files/{caseFile}/documents/{caseDocument}/download', [CaseDocumentController::class, 'download'])->middleware('can:case_documents.download');
     Route::delete('case-files/{caseFile}/documents/{caseDocument}', [CaseDocumentController::class, 'destroy'])->middleware('can:case_documents.delete');
+
+    Route::get('donors', [DonorController::class, 'index'])->middleware('can:donors.view');
+    Route::post('donors', [DonorController::class, 'store'])->middleware('can:donors.create');
+    Route::get('donors/{donor}', [DonorController::class, 'show'])->middleware('can:donors.view');
+    Route::patch('donors/{donor}', [DonorController::class, 'update'])->middleware('can:donors.update');
+    Route::delete('donors/{donor}', [DonorController::class, 'destroy'])->middleware('can:donors.delete');
+    Route::get('donors/{donor}/donations', [DonorController::class, 'donations'])->middleware('can:donations.view');
+
+    Route::get('campaigns', [CampaignController::class, 'index'])->middleware('can:campaigns.view');
+    Route::post('campaigns', [CampaignController::class, 'store'])->middleware('can:campaigns.create');
+    Route::get('campaigns/{campaign}', [CampaignController::class, 'show'])->middleware('can:campaigns.view');
+    Route::patch('campaigns/{campaign}', [CampaignController::class, 'update'])->middleware('can:campaigns.update');
+    Route::delete('campaigns/{campaign}', [CampaignController::class, 'destroy'])->middleware('can:campaigns.delete');
+    Route::post('campaigns/{campaign}/activate', [CampaignController::class, 'activate'])->middleware('can:campaigns.activate');
+    Route::post('campaigns/{campaign}/pause', [CampaignController::class, 'pause'])->middleware('can:campaigns.pause');
+    Route::post('campaigns/{campaign}/complete', [CampaignController::class, 'complete'])->middleware('can:campaigns.complete');
+    Route::post('campaigns/{campaign}/cancel', [CampaignController::class, 'cancel'])->middleware('can:campaigns.cancel');
+
+    Route::get('donations', [DonationController::class, 'index'])->middleware('can:donations.view');
+    Route::post('donations', [DonationController::class, 'store'])->middleware('can:donations.create');
+    Route::get('donations/{donation}', [DonationController::class, 'show'])->middleware('can:donations.view');
+    Route::patch('donations/{donation}', [DonationController::class, 'update'])->middleware('can:donations.update');
+    Route::post('donations/{donation}/confirm', [DonationController::class, 'confirm'])->middleware('can:donations.confirm');
+    Route::post('donations/{donation}/cancel', [DonationController::class, 'cancel'])->middleware('can:donations.cancel');
+    Route::post('donations/{donation}/refund', [DonationController::class, 'refund'])->middleware('can:donations.refund');
+    Route::get('donations/{donation}/receipt', [DonationController::class, 'receipt'])->middleware('can:receipts.view');
+    Route::post('donations/{donation}/receipt', [DonationController::class, 'generateReceipt'])->middleware('can:receipts.generate');
+
+    Route::get('donations/{donation}/allocations', [DonationAllocationController::class, 'index'])->middleware('can:donations.view');
+    Route::post('donations/{donation}/allocations', [DonationAllocationController::class, 'store'])->middleware('can:donation_allocations.manage');
+    Route::patch('donations/{donation}/allocations/{allocation}', [DonationAllocationController::class, 'update'])->middleware('can:donation_allocations.manage');
+    Route::delete('donations/{donation}/allocations/{allocation}', [DonationAllocationController::class, 'destroy'])->middleware('can:donation_allocations.manage');
+
+    Route::get('donations/{donation}/payment-transactions', [PaymentTransactionController::class, 'donationIndex'])->middleware('can:payment_transactions.view');
+    Route::get('payment-transactions/{paymentTransaction}', [PaymentTransactionController::class, 'show'])->middleware('can:payment_transactions.view');
 });

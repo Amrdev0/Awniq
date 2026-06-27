@@ -347,6 +347,201 @@ paths:
       responses:
         "200":
           description: Uploaded case document
+  /donors:
+    get:
+      summary: List donors
+      tags: [Finance]
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/Status"
+      responses:
+        "200":
+          description: Donor collection
+    post:
+      summary: Create a donor
+      tags: [Finance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DonorRequest"
+      responses:
+        "200":
+          description: Created donor
+  /donors/{donor}/donations:
+    get:
+      summary: List donor donation history
+      tags: [Finance]
+      parameters:
+        - $ref: "#/components/parameters/DonorId"
+      responses:
+        "200":
+          description: Donor donation collection
+  /campaigns:
+    get:
+      summary: List campaigns
+      tags: [Finance]
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - $ref: "#/components/parameters/Status"
+      responses:
+        "200":
+          description: Campaign collection
+    post:
+      summary: Create a campaign
+      tags: [Finance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CampaignRequest"
+      responses:
+        "200":
+          description: Created campaign
+  /campaigns/{campaign}/activate:
+    post:
+      summary: Activate a campaign
+      tags: [Finance]
+      parameters:
+        - $ref: "#/components/parameters/CampaignId"
+      responses:
+        "200":
+          description: Campaign activated
+  /campaigns/{campaign}/pause:
+    post:
+      summary: Pause a campaign
+      tags: [Finance]
+      parameters:
+        - $ref: "#/components/parameters/CampaignId"
+      responses:
+        "200":
+          description: Campaign paused
+  /campaigns/{campaign}/complete:
+    post:
+      summary: Complete a campaign
+      tags: [Finance]
+      parameters:
+        - $ref: "#/components/parameters/CampaignId"
+      responses:
+        "200":
+          description: Campaign completed
+  /campaigns/{campaign}/cancel:
+    post:
+      summary: Cancel a campaign
+      tags: [Finance]
+      parameters:
+        - $ref: "#/components/parameters/CampaignId"
+      responses:
+        "200":
+          description: Campaign cancelled
+  /donations:
+    get:
+      summary: List donations
+      tags: [Finance]
+      parameters:
+        - $ref: "#/components/parameters/Search"
+        - name: payment_status
+          in: query
+          schema:
+            type: string
+        - name: donation_status
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Donation collection
+    post:
+      summary: Create a donation with optional allocations
+      tags: [Finance]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DonationRequest"
+      responses:
+        "200":
+          description: Created donation
+  /donations/{donation}/confirm:
+    post:
+      summary: Confirm manual payment for a donation
+      tags: [Finance]
+      parameters:
+        - $ref: "#/components/parameters/DonationId"
+        - name: Idempotency-Key
+          in: header
+          schema:
+            type: string
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ConfirmDonationRequest"
+      responses:
+        "200":
+          description: Confirmed donation with payment transaction and receipt
+  /donations/{donation}/allocations:
+    get:
+      summary: List donation allocations
+      tags: [Finance]
+      parameters:
+        - $ref: "#/components/parameters/DonationId"
+      responses:
+        "200":
+          description: Allocation collection
+    post:
+      summary: Create a donation allocation
+      tags: [Finance]
+      parameters:
+        - $ref: "#/components/parameters/DonationId"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DonationAllocationRequest"
+      responses:
+        "200":
+          description: Created allocation
+  /donations/{donation}/receipt:
+    get:
+      summary: Get a donation receipt
+      tags: [Finance]
+      parameters:
+        - $ref: "#/components/parameters/DonationId"
+      responses:
+        "200":
+          description: Receipt detail
+    post:
+      summary: Generate a receipt for a confirmed donation
+      tags: [Finance]
+      parameters:
+        - $ref: "#/components/parameters/DonationId"
+      responses:
+        "200":
+          description: Generated receipt
+  /donations/{donation}/payment-transactions:
+    get:
+      summary: List donation payment transactions
+      tags: [Finance]
+      parameters:
+        - $ref: "#/components/parameters/DonationId"
+      responses:
+        "200":
+          description: Payment transaction collection
+  /payment-transactions/{paymentTransaction}:
+    get:
+      summary: Get a payment transaction
+      tags: [Finance]
+      parameters:
+        - $ref: "#/components/parameters/PaymentTransactionId"
+      responses:
+        "200":
+          description: Payment transaction detail
 components:
   securitySchemes:
     bearerAuth:
@@ -372,6 +567,30 @@ components:
         type: integer
     CaseFileId:
       name: caseFile
+      in: path
+      required: true
+      schema:
+        type: integer
+    DonorId:
+      name: donor
+      in: path
+      required: true
+      schema:
+        type: integer
+    CampaignId:
+      name: campaign
+      in: path
+      required: true
+      schema:
+        type: integer
+    DonationId:
+      name: donation
+      in: path
+      required: true
+      schema:
+        type: integer
+    PaymentTransactionId:
+      name: paymentTransaction
       in: path
       required: true
       schema:
@@ -477,6 +696,110 @@ components:
         file:
           type: string
           format: binary
+    DonorRequest:
+      type: object
+      required: [donor_type, name]
+      properties:
+        donor_type:
+          type: string
+          enum: [individual, company, institution, anonymous]
+        name:
+          type: string
+        email:
+          type: string
+          format: email
+          nullable: true
+        phone:
+          type: string
+          nullable: true
+        status:
+          type: string
+          enum: [active, inactive, blocked]
+    CampaignRequest:
+      type: object
+      required: [title, slug, goal_amount, currency, start_date]
+      properties:
+        title:
+          type: string
+        slug:
+          type: string
+        description:
+          type: string
+          nullable: true
+        goal_amount:
+          type: number
+        currency:
+          type: string
+          example: EGP
+        start_date:
+          type: string
+          format: date
+        end_date:
+          type: string
+          format: date
+          nullable: true
+        visibility:
+          type: string
+          enum: [private, public]
+    DonationAllocationRequest:
+      type: object
+      required: [allocation_type, amount]
+      properties:
+        allocation_type:
+          type: string
+          enum: [general_fund, campaign, beneficiary, case_file, medical, education, food, emergency, inventory, other]
+        campaign_id:
+          type: integer
+          nullable: true
+        beneficiary_id:
+          type: integer
+          nullable: true
+        case_file_id:
+          type: integer
+          nullable: true
+        amount:
+          type: number
+        notes:
+          type: string
+          nullable: true
+    DonationRequest:
+      type: object
+      required: [amount, currency, payment_method, donated_at]
+      properties:
+        donor_id:
+          type: integer
+          nullable: true
+        campaign_id:
+          type: integer
+          nullable: true
+        amount:
+          type: number
+        currency:
+          type: string
+          example: EGP
+        payment_method:
+          type: string
+          enum: [cash, bank_transfer, card, check, mobile_wallet, other]
+        donated_at:
+          type: string
+          format: date-time
+        allocations:
+          type: array
+          items:
+            $ref: "#/components/schemas/DonationAllocationRequest"
+    ConfirmDonationRequest:
+      type: object
+      properties:
+        provider:
+          type: string
+          enum: [manual, fake]
+        provider_transaction_id:
+          type: string
+          nullable: true
+        paid_at:
+          type: string
+          format: date-time
+          nullable: true
     RejectionReasonRequest:
       type: object
       required: [reason]

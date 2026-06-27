@@ -2,11 +2,11 @@
 
 Awniq is an open-source aid operations platform for NGOs, charities, and small institutions.
 
-The project is being built with Laravel as the main backend application foundation. The current foundation includes identity, organizations, branches, users, roles, audit logs, beneficiaries, family members, case files, case notes, and private case document upload/download.
+The project is being built with Laravel as the main backend application foundation. The current foundation includes identity, organizations, branches, users, roles, audit logs, beneficiaries, family members, case files, case notes, private case document upload/download, donors, campaigns, donations, allocations, payment transactions, and receipts.
 
 ## Current Status
 
-Phase 03: beneficiary and case-management foundation.
+Phase 04: donor, campaign, donation, and allocation foundation.
 
 Implemented so far:
 
@@ -21,7 +21,9 @@ Implemented so far:
 - Branch, user, role, permission, and audit-log endpoints
 - Beneficiary profile, family member, case file, case note, and case document endpoints
 - Beneficiary and case review/approval workflows
-- Demo identity and case-management seed data for manual testing
+- Donor, campaign, donation, allocation, payment transaction, and receipt endpoints
+- Manual donation confirmation with idempotency support
+- Demo identity, case-management, and finance seed data for manual testing
 - Basic backend and frontend test setup
 - GitHub Actions CI workflow
 
@@ -207,6 +209,15 @@ GET    /api/v1/case-files/{caseFile}/notes
 POST   /api/v1/case-files/{caseFile}/notes
 GET    /api/v1/case-files/{caseFile}/documents
 POST   /api/v1/case-files/{caseFile}/documents
+GET    /api/v1/donors
+POST   /api/v1/donors
+GET    /api/v1/campaigns
+POST   /api/v1/campaigns
+POST   /api/v1/campaigns/{campaign}/activate
+GET    /api/v1/donations
+POST   /api/v1/donations
+POST   /api/v1/donations/{donation}/confirm
+GET    /api/v1/donations/{donation}/receipt
 ```
 
 ## Test Commands
@@ -246,9 +257,9 @@ Only `.env.example` files should be committed.
 
 Next implementation phase:
 
-1. Donors
-2. Campaigns
-3. Donations
-4. Donation allocation to approved cases
+1. Warehouses
+2. Inventory items
+3. Stock lots
+4. Stock movements
 
-Inventory, aid distribution, reporting, transparency, notifications, and release hardening will follow after the beneficiary/case and donation foundations are stable.
+Aid distribution, reporting, transparency, notifications, and release hardening will follow after the beneficiary/case, donation, and inventory foundations are stable.

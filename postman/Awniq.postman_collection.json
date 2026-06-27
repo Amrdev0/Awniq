@@ -429,6 +429,137 @@
           }
         }
       ]
+    },
+    {
+      "name": "Finance",
+      "item": [
+        {
+          "name": "List Donors",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/donors"
+          }
+        },
+        {
+          "name": "List Campaigns",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/campaigns"
+          }
+        },
+        {
+          "name": "List Donations",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/donations"
+          }
+        },
+        {
+          "name": "Create Donation",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"donor_id\": 1,\n  \"campaign_id\": 1,\n  \"amount\": 1000,\n  \"currency\": \"EGP\",\n  \"payment_method\": \"cash\",\n  \"donated_at\": \"2026-06-27T12:00:00Z\",\n  \"allocations\": [\n    {\n      \"allocation_type\": \"campaign\",\n      \"campaign_id\": 1,\n      \"amount\": 1000,\n      \"notes\": \"Manual Postman allocation.\"\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/donations"
+          }
+        },
+        {
+          "name": "Confirm Donation",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              },
+              {
+                "key": "Idempotency-Key",
+                "value": "postman-confirm-001"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"manual\",\n  \"provider_transaction_id\": \"POSTMAN-MANUAL-001\"\n}"
+            },
+            "url": "{{baseUrl}}/donations/1/confirm"
+          }
+        },
+        {
+          "name": "Donation Receipt",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/donations/1/receipt"
+          }
+        }
+      ]
     }
   ]
 }
