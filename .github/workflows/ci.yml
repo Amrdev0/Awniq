@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  push:
+    branches: ["main"]
+  pull_request:
+
+jobs:
+  api:
+    name: API
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: "8.3"
+          extensions: pdo_sqlite, pdo_pgsql, redis
+          coverage: none
+
+      - name: Install Composer dependencies
+        working-directory: apps/api
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Prepare environment
+        working-directory: apps/api
+        run: |
+          cp .env.example .env
+          php artisan key:generate --force
+
+      - name: Run Pint
+        working-directory: apps/api
+        run: composer lint
+
+      - name: Run API tests
+        working-directory: apps/api
+        run: composer test
+
+  admin:
+    name: Admin
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: apps/admin/package-lock.json
+
+      - name: Install npm dependencies
+        working-directory: apps/admin
+        run: npm ci
+
+      - name: Run frontend lint
+        working-directory: apps/admin
+        run: npm run lint
+
+      - name: Run frontend tests
+        working-directory: apps/admin
+        run: npm run test
+
+      - name: Build frontend
+        working-directory: apps/admin
+        run: npm run build

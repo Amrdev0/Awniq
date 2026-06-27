@@ -1,0 +1,36 @@
+openapi: 3.0.3
+info:
+  title: Awniq API
+  version: 0.1.0
+  description: Initial OpenAPI placeholder for the Phase 01 foundation.
+servers:
+  - url: http://localhost:8000/api/v1
+paths:
+  /health:
+    get:
+      summary: Check API health
+      tags:
+        - System
+      responses:
+        "200":
+          description: API health status
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  data:
+                    type: object
+                    properties:
+                      status:
+                        type: string
+                        example: ok
+                      service:
+                        type: string
+                        example: awniq-api
+                      environment:
+                        type: string
+                        example: local
+                  message:
+                    type: string
+                    example: Operation completed successfully.
