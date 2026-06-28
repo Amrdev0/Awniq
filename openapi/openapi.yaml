@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Awniq API
-  version: 0.8.0
-  description: API contract snapshot for the identity, case-management, finance, inventory, aid distribution, reporting, and public transparency foundations.
+  version: 0.9.0
+  description: API contract snapshot for the identity, case-management, finance, inventory, aid distribution, reporting, public transparency, and notification automation foundations.
 servers:
   - url: http://localhost:8000/api/v1
 security:
@@ -133,6 +133,86 @@ paths:
       responses:
         "200":
           description: Token revoked
+  /notifications:
+    get:
+      summary: List current user's notifications
+      tags: [Notifications]
+      parameters:
+        - name: unread
+          in: query
+          schema:
+            type: boolean
+        - name: category
+          in: query
+          schema:
+            type: string
+            enum: [cases, finance, inventory, aid_distribution, system]
+        - name: severity
+          in: query
+          schema:
+            type: string
+            enum: [info, success, warning, critical]
+      responses:
+        "200":
+          description: Notification collection
+  /notifications/unread-count:
+    get:
+      summary: Get current user's unread notification count
+      tags: [Notifications]
+      responses:
+        "200":
+          description: Unread notification count
+  /notifications/{notification}/mark-read:
+    post:
+      summary: Mark one notification as read
+      tags: [Notifications]
+      parameters:
+        - $ref: "#/components/parameters/NotificationId"
+      responses:
+        "200":
+          description: Updated notification
+        "404":
+          description: Notification does not belong to current user
+  /notifications/mark-all-read:
+    post:
+      summary: Mark all current user's notifications as read
+      tags: [Notifications]
+      responses:
+        "200":
+          description: Notifications marked read
+  /notification-preferences:
+    get:
+      summary: List current user's notification preferences
+      tags: [Notifications]
+      responses:
+        "200":
+          description: Notification preference collection
+    patch:
+      summary: Update current user's notification preferences
+      tags: [Notifications]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateNotificationPreferencesRequest"
+      responses:
+        "200":
+          description: Updated notification preference collection
+  /system/scheduled-jobs:
+    get:
+      summary: List configured scheduled jobs
+      tags: [System]
+      responses:
+        "200":
+          description: Scheduled job metadata
+  /system/queue-health:
+    get:
+      summary: Get queue health counts
+      tags: [System]
+      responses:
+        "200":
+          description: Queue connection and job counts
   /organization:
     get:
       summary: Get current organization
@@ -1469,6 +1549,12 @@ components:
       required: true
       schema:
         type: integer
+    NotificationId:
+      name: notification
+      in: path
+      required: true
+      schema:
+        type: integer
     PublicCampaignSlug:
       name: slug
       in: path
@@ -1982,6 +2068,24 @@ components:
         about:
           type: string
           nullable: true
+    UpdateNotificationPreferencesRequest:
+      type: object
+      required: [preferences]
+      properties:
+        preferences:
+          type: array
+          items:
+            type: object
+            required: [category]
+            properties:
+              category:
+                type: string
+                enum: [cases, finance, inventory, aid_distribution, system]
+              database_enabled:
+                type: boolean
+              email_enabled:
+                type: boolean
+                description: Stored as false until an email channel is configured.
     RejectionReasonRequest:
       type: object
       required: [reason]

@@ -47,6 +47,14 @@ Protected identity endpoints:
 ```txt
 GET    /api/v1/auth/me
 POST   /api/v1/auth/logout
+GET    /api/v1/notifications
+GET    /api/v1/notifications/unread-count
+POST   /api/v1/notifications/{notification}/mark-read
+POST   /api/v1/notifications/mark-all-read
+GET    /api/v1/notification-preferences
+PATCH  /api/v1/notification-preferences
+GET    /api/v1/system/scheduled-jobs
+GET    /api/v1/system/queue-health
 GET    /api/v1/organization
 GET    /api/v1/settings/public-portal
 PATCH  /api/v1/settings/public-portal
@@ -232,6 +240,35 @@ POST /api/v1/public/donations
 Public endpoints are unauthenticated and rate limited. They use public-safe resources and must not expose donor identities, beneficiary identities, case details, audit logs, private campaign records, or internal operational notes.
 
 The seeded demo organization has its public portal enabled, public reports enabled, and public donation intake disabled. Use `PATCH /api/v1/settings/public-portal` as `admin@awniq.test` to toggle public settings for manual testing.
+
+Protected notification and automation endpoints:
+
+```txt
+GET    /api/v1/notifications
+GET    /api/v1/notifications/unread-count
+POST   /api/v1/notifications/{notification}/mark-read
+POST   /api/v1/notifications/mark-all-read
+GET    /api/v1/notification-preferences
+PATCH  /api/v1/notification-preferences
+GET    /api/v1/system/scheduled-jobs
+GET    /api/v1/system/queue-health
+```
+
+Scheduled notification jobs are registered in `routes/console.php`. Run the scheduler in production with:
+
+```bash
+php artisan schedule:work
+```
+
+Run queued work with:
+
+```bash
+php artisan queue:work
+```
+
+MVP notification categories are `cases`, `finance`, `inventory`, `aid_distribution`, and `system`. Email, SMS, and WhatsApp delivery are intentionally deferred; `email_enabled` is stored as `false` until a mail/channel integration is configured.
+
+Default routing sends case alerts to assigned case managers and case-manager roles, finance alerts to finance officers, stock alerts to warehouse managers, aid approval/delivery alerts to warehouse or distribution roles, and critical operational alerts to organization admins where relevant.
 
 ## Commands
 

@@ -17,6 +17,7 @@ use App\Services\AidDeliveryService;
 use App\Services\AuditLogService;
 use App\Services\BeneficiaryEligibilityService;
 use App\Services\IdempotencyService;
+use App\Services\Notifications\NotificationService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 
@@ -95,6 +96,7 @@ class AidDistributionController extends Controller
         AidDistribution $distribution,
         AidDeliveryService $deliveryService,
         AuditLogService $auditLogService,
+        NotificationService $notifications,
     ): AidDistributionResource {
         $this->assertDistributionScope($distribution);
 
@@ -106,6 +108,7 @@ class AidDistributionController extends Controller
             $request->validated('notes'),
         );
         $auditLogService->record('aid_distribution.failed', $failedDistribution, $oldValues, $failedDistribution->toArray(), $request);
+        $notifications->distributionChanged($failedDistribution, 'failed');
 
         return new AidDistributionResource($failedDistribution);
     }
@@ -115,6 +118,7 @@ class AidDistributionController extends Controller
         AidDistribution $distribution,
         AidDeliveryService $deliveryService,
         AuditLogService $auditLogService,
+        NotificationService $notifications,
     ): AidDistributionResource {
         $this->assertDistributionScope($distribution);
 
@@ -125,6 +129,7 @@ class AidDistributionController extends Controller
             $request->validated('notes'),
         );
         $auditLogService->record('aid_distribution.rescheduled', $rescheduledDistribution, $oldValues, $rescheduledDistribution->toArray(), $request);
+        $notifications->distributionChanged($rescheduledDistribution, 'rescheduled');
 
         return new AidDistributionResource($rescheduledDistribution);
     }

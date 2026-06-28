@@ -10,6 +10,7 @@ use App\Models\Beneficiary;
 use App\Models\CaseFile;
 use App\Services\AuditLogService;
 use App\Services\CaseNumberGenerator;
+use App\Services\Notifications\NotificationService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -104,40 +105,52 @@ class CaseFileController extends Controller
         return ApiResponse::success(message: 'Case file deleted successfully.');
     }
 
-    public function submitReview(CaseFile $caseFile, AuditLogService $auditLogService): CaseFileResource
+    public function submitReview(CaseFile $caseFile, AuditLogService $auditLogService, NotificationService $notifications): CaseFileResource
     {
         $this->assertCaseScope($caseFile);
         $this->assertStatusIn($caseFile, ['open', 'rejected'], 'Only open or rejected cases can be submitted for review.');
 
-        return $this->transition($caseFile, 'under_review', 'case_file.submitted_for_review', [
+        $resource = $this->transition($caseFile, 'under_review', 'case_file.submitted_for_review', [
             'reviewed_by_user_id' => null,
             'approved_by_user_id' => null,
             'rejection_reason' => null,
         ], $auditLogService);
+
+        $notifications->caseSubmittedForReview($caseFile->fresh()->load(['beneficiary', 'assignedTo']));
+
+        return $resource;
     }
 
-    public function approve(CaseFile $caseFile, AuditLogService $auditLogService): CaseFileResource
+    public function approve(CaseFile $caseFile, AuditLogService $auditLogService, NotificationService $notifications): CaseFileResource
     {
         $this->assertCaseScope($caseFile);
         $this->assertStatusIn($caseFile, ['under_review'], 'Only cases under review can be approved.');
 
-        return $this->transition($caseFile, 'approved', 'case_file.approved', [
+        $resource = $this->transition($caseFile, 'approved', 'case_file.approved', [
             'reviewed_by_user_id' => request()->user()->id,
             'approved_by_user_id' => request()->user()->id,
             'rejection_reason' => null,
         ], $auditLogService);
+
+        $notifications->caseDecision($caseFile->fresh()->load(['beneficiary', 'assignedTo']), 'approved');
+
+        return $resource;
     }
 
-    public function reject(RejectionReasonRequest $request, CaseFile $caseFile, AuditLogService $auditLogService): CaseFileResource
+    public function reject(RejectionReasonRequest $request, CaseFile $caseFile, AuditLogService $auditLogService, NotificationService $notifications): CaseFileResource
     {
         $this->assertCaseScope($caseFile);
         $this->assertStatusIn($caseFile, ['under_review'], 'Only cases under review can be rejected.');
 
-        return $this->transition($caseFile, 'rejected', 'case_file.rejected', [
+        $resource = $this->transition($caseFile, 'rejected', 'case_file.rejected', [
             'reviewed_by_user_id' => $request->user()->id,
             'approved_by_user_id' => null,
             'rejection_reason' => $request->validated('reason'),
         ], $auditLogService, $request);
+
+        $notifications->caseDecision($caseFile->fresh()->load(['beneficiary', 'assignedTo']), 'rejected');
+
+        return $resource;
     }
 
     public function suspend(CaseFile $caseFile, AuditLogService $auditLogService): CaseFileResource

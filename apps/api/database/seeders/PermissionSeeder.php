@@ -124,6 +124,12 @@ class PermissionSeeder extends Seeder
         'public_portal_settings.view',
         'public_portal_settings.update',
         'public_portal.preview',
+        'notifications.view',
+        'notifications.update',
+        'notification_preferences.view',
+        'notification_preferences.update',
+        'system.queue.view',
+        'system.scheduler.view',
     ];
 
     public function run(): void

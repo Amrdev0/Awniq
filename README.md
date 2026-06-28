@@ -2,11 +2,11 @@
 
 Awniq is an open-source aid operations platform for NGOs, charities, and small institutions.
 
-The project is being built with Laravel as the main backend application foundation. The current foundation includes identity, organizations, branches, users, roles, audit logs, beneficiaries, family members, case files, case notes, private case document upload/download, donors, campaigns, donations, allocations, payment transactions, receipts, warehouses, inventory items, stock lots, stock movements, stock status reports, aid batches, aid distributions, delivery proof metadata, stock reservations, dashboard metrics, internal reports, CSV exports, public portal settings, public-safe campaign/statistics APIs, and public donation intent placeholders.
+The project is being built with Laravel as the main backend application foundation. The current foundation includes identity, organizations, branches, users, roles, audit logs, beneficiaries, family members, case files, case notes, private case document upload/download, donors, campaigns, donations, allocations, payment transactions, receipts, warehouses, inventory items, stock lots, stock movements, stock status reports, aid batches, aid distributions, delivery proof metadata, stock reservations, dashboard metrics, internal reports, CSV exports, public portal settings, public-safe campaign/statistics APIs, public donation intent placeholders, in-app notifications, notification preferences, scheduled operational reminders, and queue/scheduler health endpoints.
 
 ## Current Status
 
-Phase 08: public transparency portal foundation.
+Phase 09: notifications, scheduler, and automation foundation.
 
 Implemented so far:
 
@@ -28,6 +28,9 @@ Implemented so far:
 - Dashboard, donation, campaign, beneficiary, case, distribution, inventory, audit report, and CSV export endpoints
 - Public organization profile, public campaign, public stats, public reports, public donation intent, and public portal settings endpoints
 - Public portal frontend route group at `/public`
+- In-app notification, unread count, mark-read, notification preference, queue health, and scheduler visibility endpoints
+- Scheduled jobs for low stock, expiring stock, case follow-up, pending batch approval, and pending donation reminders
+- Admin notification bell with unread badge and mark-read actions
 - Demo identity, case-management, finance, inventory, and aid distribution seed data for manual testing
 - Basic backend and frontend test setup
 - GitHub Actions CI workflow
@@ -193,6 +196,14 @@ Useful protected endpoints:
 ```txt
 GET    /api/v1/auth/me
 POST   /api/v1/auth/logout
+GET    /api/v1/notifications
+GET    /api/v1/notifications/unread-count
+POST   /api/v1/notifications/{notification}/mark-read
+POST   /api/v1/notifications/mark-all-read
+GET    /api/v1/notification-preferences
+PATCH  /api/v1/notification-preferences
+GET    /api/v1/system/scheduled-jobs
+GET    /api/v1/system/queue-health
 GET    /api/v1/organization
 PATCH  /api/v1/organization
 GET    /api/v1/settings/public-portal
@@ -321,9 +332,9 @@ Only `.env.example` files should be committed.
 
 Next implementation phase:
 
-1. Notifications and scheduled reminders
-2. Automation for recurring operational jobs
-3. Background jobs for heavier workflows
-4. Notification preferences and delivery logs
+1. Open-source release readiness
+2. Contributor documentation
+3. Security and privacy hardening
+4. Deployment and production operations guide
 
-Notifications, scheduler automation, and release hardening will follow after the public portal foundation is stable.
+Release hardening will follow after the notification and automation foundation is stable.

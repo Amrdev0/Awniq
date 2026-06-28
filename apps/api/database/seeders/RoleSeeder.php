@@ -9,6 +9,16 @@ use Spatie\Permission\PermissionRegistrar;
 class RoleSeeder extends Seeder
 {
     /**
+     * @var list<string>
+     */
+    private array $commonUserPermissions = [
+        'notifications.view',
+        'notifications.update',
+        'notification_preferences.view',
+        'notification_preferences.update',
+    ];
+
+    /**
      * @var array<string, list<string>>
      */
     private array $rolePermissions = [
@@ -220,6 +230,8 @@ class RoleSeeder extends Seeder
             'exports.download',
             'public_portal_settings.view',
             'public_portal.preview',
+            'system.queue.view',
+            'system.scheduler.view',
         ],
     ];
 
@@ -234,7 +246,7 @@ class RoleSeeder extends Seeder
             ]);
 
             $role->forceFill(['is_protected' => true])->save();
-            $role->syncPermissions($permissions);
+            $role->syncPermissions(array_values(array_unique([...$permissions, ...$this->commonUserPermissions])));
         }
 
         app(PermissionRegistrar::class)->forgetCachedPermissions();

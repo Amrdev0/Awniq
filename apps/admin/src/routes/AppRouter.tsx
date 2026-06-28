@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
 import { createBrowserRouter, RouterProvider } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Building2, FileText, GitBranch, ListChecks, LogOut, ShieldCheck, Users } from 'lucide-react'
+import { Bell, Building2, Check, FileText, GitBranch, ListChecks, LogOut, ShieldCheck, Users } from 'lucide-react'
 import { clearStoredToken, getStoredToken, storeToken } from '../app/auth'
 import { EmptyState } from '../components/ui/EmptyState'
 import { LoadingState } from '../components/ui/LoadingState'
@@ -12,6 +12,7 @@ import { getBeneficiaries, getCaseFiles } from '../services/api/cases'
 import { getCampaigns, getDonations, getDonors } from '../services/api/finance'
 import { getAuditLogs, getBranches, getOrganization, getRoles, getUsers } from '../services/api/identity'
 import { getExpiringStock, getInventoryItems, getLowStock, getStockSummary, getWarehouses } from '../services/api/inventory'
+import { getNotifications, getUnreadNotificationCount, markAllNotificationsRead, markNotificationRead, type OperationalNotification } from '../services/api/notifications'
 import { getDashboardReport } from '../services/api/reports'
 import { PublicCampaignDetailsPage, PublicPortalPage } from './PublicPortalPage'
 
@@ -82,6 +83,7 @@ function LoginPage({ onAuthenticated }: { onAuthenticated: (token: string) => vo
 function AdminPage() {
   const queryClient = useQueryClient()
   const [authToken, setAuthToken] = useState(() => getStoredToken())
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const me = useQuery({ queryKey: ['me'], queryFn: getMe, enabled: Boolean(authToken) })
   const organization = useQuery({ queryKey: ['organization'], queryFn: getOrganization, enabled: Boolean(me.data) })
   const branches = useQuery({ queryKey: ['branches'], queryFn: getBranches, enabled: Boolean(me.data) })
@@ -100,6 +102,22 @@ function AdminPage() {
   const expiringStock = useQuery({ queryKey: ['stock-expiring'], queryFn: getExpiringStock, enabled: Boolean(me.data) })
   const aidBatches = useQuery({ queryKey: ['aid-batches'], queryFn: getAidBatches, enabled: Boolean(me.data) })
   const dashboardReport = useQuery({ queryKey: ['reports-dashboard'], queryFn: getDashboardReport, enabled: Boolean(me.data) })
+  const notifications = useQuery({ queryKey: ['notifications'], queryFn: getNotifications, enabled: Boolean(me.data), refetchInterval: 30000 })
+  const unreadNotifications = useQuery({ queryKey: ['notifications-unread-count'], queryFn: getUnreadNotificationCount, enabled: Boolean(me.data), refetchInterval: 30000 })
+  const markReadMutation = useMutation({
+    mutationFn: markNotificationRead,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      void queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] })
+    },
+  })
+  const markAllReadMutation = useMutation({
+    mutationFn: markAllNotificationsRead,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      void queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] })
+    },
+  })
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSettled: () => {
@@ -143,14 +161,37 @@ function AdminPage() {
               Signed in as {me.data.name} ({me.data.email})
             </p>
           </div>
-          <button
-            className="inline-flex items-center gap-2 rounded-md border border-[#c8d4cf] bg-white px-3 py-2 text-sm"
-            onClick={() => logoutMutation.mutate()}
-            type="button"
-          >
-            <LogOut size={16} aria-hidden="true" />
-            Logout
-          </button>
+          <div className="relative flex items-center gap-2">
+            <button
+              className="relative inline-flex h-10 w-10 items-center justify-center rounded-md border border-[#c8d4cf] bg-white text-[#24332e]"
+              onClick={() => setNotificationsOpen((open) => !open)}
+              title="Notifications"
+              type="button"
+            >
+              <Bell size={18} aria-hidden="true" />
+              {(unreadNotifications.data ?? 0) > 0 ? (
+                <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-[#a44a3f] px-1.5 py-0.5 text-center text-xs font-semibold text-white">
+                  {unreadNotifications.data}
+                </span>
+              ) : null}
+            </button>
+            {notificationsOpen ? (
+              <NotificationDropdown
+                isLoading={notifications.isPending}
+                notifications={notifications.data}
+                onMarkAllRead={() => markAllReadMutation.mutate()}
+                onMarkRead={(id) => markReadMutation.mutate(id)}
+              />
+            ) : null}
+            <button
+              className="inline-flex items-center gap-2 rounded-md border border-[#c8d4cf] bg-white px-3 py-2 text-sm"
+              onClick={() => logoutMutation.mutate()}
+              type="button"
+            >
+              <LogOut size={16} aria-hidden="true" />
+              Logout
+            </button>
+          </div>
         </header>
 
         <div className="grid gap-4 lg:grid-cols-2">
@@ -343,6 +384,70 @@ function KeyValueRows({ rows }: { rows: [string, string | null][] }) {
       ))}
     </dl>
   )
+}
+
+function NotificationDropdown({
+  isLoading,
+  notifications,
+  onMarkAllRead,
+  onMarkRead,
+}: {
+  isLoading: boolean
+  notifications: OperationalNotification[] | undefined
+  onMarkAllRead: () => void
+  onMarkRead: (id: number) => void
+}) {
+  return (
+    <div className="absolute right-0 top-12 z-10 w-[min(360px,calc(100vw-2rem))] rounded-md border border-[#d9e1de] bg-white p-4 shadow-lg">
+      <div className="mb-3 flex items-center justify-between gap-3">
+        <h2 className="text-sm font-semibold text-[#10201a]">Notifications</h2>
+        <button className="inline-flex items-center gap-1 text-xs font-medium text-[#236b55]" onClick={onMarkAllRead} type="button">
+          <Check size={14} aria-hidden="true" />
+          Mark all
+        </button>
+      </div>
+      {isLoading ? <LoadingState label="Loading notifications" /> : <NotificationItems notifications={notifications ?? []} onMarkRead={onMarkRead} />}
+    </div>
+  )
+}
+
+function NotificationItems({ notifications, onMarkRead }: { notifications: OperationalNotification[]; onMarkRead: (id: number) => void }) {
+  if (notifications.length === 0) {
+    return <EmptyState title="No notifications" />
+  }
+
+  return (
+    <ul className="max-h-96 divide-y divide-[#edf1ef] overflow-y-auto text-sm">
+      {notifications.map((notification) => (
+        <li className="py-3" key={notification.id}>
+          <div className="mb-1 flex items-start justify-between gap-3">
+            <div>
+              <span className={`rounded-md border px-2 py-0.5 text-xs font-medium ${severityClass(notification.severity)}`}>{notification.severity}</span>
+              <h3 className="mt-2 font-semibold text-[#10201a]">{notification.title}</h3>
+            </div>
+            {!notification.read_at ? (
+              <button className="rounded-md border border-[#c8d4cf] p-1 text-[#236b55]" onClick={() => onMarkRead(notification.id)} title="Mark read" type="button">
+                <Check size={15} aria-hidden="true" />
+              </button>
+            ) : null}
+          </div>
+          {notification.body ? <p className="leading-5 text-[#52645e]">{notification.body}</p> : null}
+          <p className="mt-2 text-xs text-[#7b8b85]">{new Date(notification.created_at).toLocaleString()}</p>
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function severityClass(severity: string) {
+  const classes: Record<string, string> = {
+    info: 'border-[#bbd5e7] bg-[#eef7fc] text-[#245a7a]',
+    success: 'border-[#b7d8c8] bg-[#edf8f1] text-[#236b55]',
+    warning: 'border-[#e8d6ad] bg-[#fff8e8] text-[#6f541e]',
+    critical: 'border-[#e8b8b0] bg-[#fff1ef] text-[#a44a3f]',
+  }
+
+  return classes[severity] ?? 'border-[#d8e0dc] bg-white text-[#52645e]'
 }
 
 function SimpleList<T>({ items, label, render }: { items: T[] | undefined; label: string; render: (item: T) => string }) {

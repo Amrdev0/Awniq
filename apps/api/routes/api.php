@@ -18,6 +18,8 @@ use App\Http\Controllers\Api\V1\DonorController;
 use App\Http\Controllers\Api\V1\ExportController;
 use App\Http\Controllers\Api\V1\HealthController;
 use App\Http\Controllers\Api\V1\InventoryItemController;
+use App\Http\Controllers\Api\V1\NotificationController;
+use App\Http\Controllers\Api\V1\NotificationPreferenceController;
 use App\Http\Controllers\Api\V1\OrganizationController;
 use App\Http\Controllers\Api\V1\PaymentTransactionController;
 use App\Http\Controllers\Api\V1\PermissionController;
@@ -28,6 +30,7 @@ use App\Http\Controllers\Api\V1\RoleController;
 use App\Http\Controllers\Api\V1\StockLotController;
 use App\Http\Controllers\Api\V1\StockMovementController;
 use App\Http\Controllers\Api\V1\StockReportController;
+use App\Http\Controllers\Api\V1\SystemHealthController;
 use App\Http\Controllers\Api\V1\UserController;
 use App\Http\Controllers\Api\V1\WarehouseController;
 use Illuminate\Support\Facades\Route;
@@ -52,6 +55,15 @@ Route::prefix('auth')->group(function (): void {
 Route::middleware('auth:sanctum')->group(function (): void {
     Route::post('auth/logout', [AuthController::class, 'logout']);
     Route::get('auth/me', [AuthController::class, 'me']);
+
+    Route::get('notifications', [NotificationController::class, 'index'])->middleware('can:notifications.view');
+    Route::get('notifications/unread-count', [NotificationController::class, 'unreadCount'])->middleware('can:notifications.view');
+    Route::post('notifications/mark-all-read', [NotificationController::class, 'markAllRead'])->middleware('can:notifications.update');
+    Route::post('notifications/{notification}/mark-read', [NotificationController::class, 'markRead'])->middleware('can:notifications.update');
+    Route::get('notification-preferences', [NotificationPreferenceController::class, 'index'])->middleware('can:notification_preferences.view');
+    Route::patch('notification-preferences', [NotificationPreferenceController::class, 'update'])->middleware('can:notification_preferences.update');
+    Route::get('system/scheduled-jobs', [SystemHealthController::class, 'scheduledJobs'])->middleware('can:system.scheduler.view');
+    Route::get('system/queue-health', [SystemHealthController::class, 'queueHealth'])->middleware('can:system.queue.view');
 
     Route::get('organization', [OrganizationController::class, 'show'])->middleware('can:organization.view');
     Route::patch('organization', [OrganizationController::class, 'update'])->middleware('can:organization.update');

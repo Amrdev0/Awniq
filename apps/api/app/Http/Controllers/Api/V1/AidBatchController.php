@@ -17,6 +17,7 @@ use App\Services\AidDistributionNumberGenerator;
 use App\Services\AuditLogService;
 use App\Services\BeneficiaryEligibilityService;
 use App\Services\IdempotencyService;
+use App\Services\Notifications\NotificationService;
 use App\Services\StockReservationService;
 use App\Support\ApiResponse;
 use Illuminate\Http\JsonResponse;
@@ -96,13 +97,18 @@ class AidBatchController extends Controller
         return ApiResponse::success(message: 'Aid batch deleted successfully.');
     }
 
-    public function submitApproval(AidBatch $aidBatch, AidBatchWorkflowService $workflowService, AuditLogService $auditLogService): AidBatchResource
-    {
+    public function submitApproval(
+        AidBatch $aidBatch,
+        AidBatchWorkflowService $workflowService,
+        AuditLogService $auditLogService,
+        NotificationService $notifications,
+    ): AidBatchResource {
         $this->assertBatchScope($aidBatch);
 
         $oldValues = $aidBatch->toArray();
         $batch = $workflowService->submitForApproval($aidBatch, request()->user());
         $auditLogService->record('aid_batch.submitted_for_approval', $batch, $oldValues, $batch->toArray(), request());
+        $notifications->aidBatchSubmitted($batch);
 
         return new AidBatchResource($batch);
     }
@@ -113,6 +119,7 @@ class AidBatchController extends Controller
         AidBatchWorkflowService $workflowService,
         IdempotencyService $idempotencyService,
         AuditLogService $auditLogService,
+        NotificationService $notifications,
     ): JsonResponse {
         $this->assertBatchScope($aidBatch);
 
@@ -123,6 +130,8 @@ class AidBatchController extends Controller
         $oldValues = $aidBatch->toArray();
         $batch = $workflowService->approve($aidBatch, $request->user());
         $auditLogService->record('aid_batch.approved', $batch, $oldValues, $batch->toArray(), $request);
+        $notifications->aidBatchApproved($batch);
+        $batch->distributions()->get()->each(fn ($distribution) => $notifications->distributionAssigned($distribution));
 
         $body = ['data' => (new AidBatchResource($batch))->resolve($request)];
         $idempotencyService->rememberResponse($request, 200, $body);
@@ -130,13 +139,18 @@ class AidBatchController extends Controller
         return response()->json($body);
     }
 
-    public function cancel(AidBatch $aidBatch, AidBatchWorkflowService $workflowService, AuditLogService $auditLogService): AidBatchResource
-    {
+    public function cancel(
+        AidBatch $aidBatch,
+        AidBatchWorkflowService $workflowService,
+        AuditLogService $auditLogService,
+        NotificationService $notifications,
+    ): AidBatchResource {
         $this->assertBatchScope($aidBatch);
 
         $oldValues = $aidBatch->toArray();
         $batch = $workflowService->cancel($aidBatch, request()->user());
         $auditLogService->record('aid_batch.cancelled', $batch, $oldValues, $batch->toArray(), request());
+        $notifications->aidBatchCancelled($batch);
 
         return new AidBatchResource($batch);
     }

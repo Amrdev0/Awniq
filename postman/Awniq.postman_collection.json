@@ -1242,6 +1242,157 @@
           }
         }
       ]
+    },
+    {
+      "name": "Notifications",
+      "item": [
+        {
+          "name": "List Notifications",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/notifications"
+          }
+        },
+        {
+          "name": "Unread Notification Count",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/notifications/unread-count"
+          }
+        },
+        {
+          "name": "Mark Notification Read",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/notifications/1/mark-read"
+          }
+        },
+        {
+          "name": "Mark All Notifications Read",
+          "request": {
+            "method": "POST",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/notifications/mark-all-read"
+          }
+        },
+        {
+          "name": "Notification Preferences",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/notification-preferences"
+          }
+        },
+        {
+          "name": "Update Notification Preferences",
+          "request": {
+            "method": "PATCH",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"preferences\": [\n    {\n      \"category\": \"inventory\",\n      \"database_enabled\": true,\n      \"email_enabled\": false\n    }\n  ]\n}"
+            },
+            "url": "{{baseUrl}}/notification-preferences"
+          }
+        },
+        {
+          "name": "Scheduled Jobs",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/system/scheduled-jobs"
+          }
+        },
+        {
+          "name": "Queue Health",
+          "request": {
+            "method": "GET",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{token}}",
+                  "type": "string"
+                }
+              ]
+            },
+            "url": "{{baseUrl}}/system/queue-health"
+          }
+        }
+      ]
     }
   ]
 }

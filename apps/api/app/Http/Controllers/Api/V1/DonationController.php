@@ -14,6 +14,7 @@ use App\Services\DonationAllocationService;
 use App\Services\DonationConfirmationService;
 use App\Services\DonationNumberGenerator;
 use App\Services\IdempotencyService;
+use App\Services\Notifications\NotificationService;
 use App\Services\ReceiptNumberGenerator;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
@@ -124,6 +125,7 @@ class DonationController extends Controller
         DonationConfirmationService $confirmationService,
         IdempotencyService $idempotencyService,
         AuditLogService $auditLogService,
+        NotificationService $notifications,
     ): JsonResponse {
         $this->assertDonationScope($donation);
 
@@ -135,6 +137,7 @@ class DonationController extends Controller
         $confirmedDonation = $confirmationService->confirm($donation, $request->user(), $request->validated(), $request->header('Idempotency-Key'));
 
         $auditLogService->record('donation.confirmed', $confirmedDonation, $oldValues, $confirmedDonation->toArray(), $request);
+        $notifications->donationConfirmed($confirmedDonation);
 
         $body = [
             'data' => (new DonationResource($confirmedDonation))->resolve($request),
@@ -179,8 +182,12 @@ class DonationController extends Controller
         return new ReceiptResource($receipt);
     }
 
-    public function generateReceipt(Donation $donation, ReceiptNumberGenerator $receiptNumberGenerator, AuditLogService $auditLogService): ReceiptResource
-    {
+    public function generateReceipt(
+        Donation $donation,
+        ReceiptNumberGenerator $receiptNumberGenerator,
+        AuditLogService $auditLogService,
+        NotificationService $notifications,
+    ): ReceiptResource {
         $this->assertDonationScope($donation);
         abort_unless($donation->isConfirmed(), 422, 'Receipts can only be generated for confirmed donations.');
 
@@ -196,6 +203,7 @@ class DonationController extends Controller
         );
 
         $auditLogService->record('receipt.generated', $receipt, null, $receipt->toArray(), request());
+        $notifications->receiptGenerated($receipt->load('donation'));
 
         return new ReceiptResource($receipt->load('issuer'));
     }
