@@ -23,6 +23,13 @@
             "method": "GET",
             "url": "{{baseUrl}}/health"
           }
+        },
+        {
+          "name": "Version",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/version"
+          }
         }
       ]
     },

@@ -1,8 +1,8 @@
 openapi: 3.0.3
 info:
   title: Awniq API
-  version: 0.9.0
-  description: API contract snapshot for the identity, case-management, finance, inventory, aid distribution, reporting, public transparency, and notification automation foundations.
+  version: 0.10.0
+  description: API contract snapshot for the identity, case-management, finance, inventory, aid distribution, reporting, public transparency, notification automation, and release-readiness foundations.
 servers:
   - url: http://localhost:8000/api/v1
 security:
@@ -16,6 +16,14 @@ paths:
       responses:
         "200":
           description: API health status
+  /version:
+    get:
+      summary: Get API release metadata
+      tags: [System]
+      security: []
+      responses:
+        "200":
+          description: API service, version, commit, and environment metadata
   /public/organization:
     get:
       summary: Get public organization profile

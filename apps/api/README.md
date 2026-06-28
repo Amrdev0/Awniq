@@ -27,6 +27,7 @@ DB_PASSWORD=
 
 ```txt
 GET /api/v1/health
+GET /api/v1/version
 ```
 
 ## Demo Login
@@ -254,7 +255,7 @@ GET    /api/v1/system/scheduled-jobs
 GET    /api/v1/system/queue-health
 ```
 
-Scheduled notification jobs are registered in `routes/console.php`. Run the scheduler in production with:
+Scheduled notification jobs are registered in `routes/console.php`. Run the scheduler locally with:
 
 ```bash
 php artisan schedule:work
@@ -264,6 +265,12 @@ Run queued work with:
 
 ```bash
 php artisan queue:work
+```
+
+Production scheduler deployments should use cron:
+
+```cron
+* * * * * cd /path/to/Awniq/apps/api && php artisan schedule:run >> /dev/null 2>&1
 ```
 
 MVP notification categories are `cases`, `finance`, `inventory`, `aid_distribution`, and `system`. Email, SMS, and WhatsApp delivery are intentionally deferred; `email_enabled` is stored as `false` until a mail/channel integration is configured.
@@ -276,3 +283,17 @@ Default routing sends case alerts to assigned case managers and case-manager rol
 composer lint
 composer test
 ```
+
+Clean demo database:
+
+```bash
+php artisan migrate:fresh --seed
+```
+
+Seed demo data after permissions and roles already exist:
+
+```bash
+php artisan db:seed --class=DemoDataSeeder
+```
+
+See the root `DEPLOYMENT.md`, `DATABASE.md`, and `DEMO_WALKTHROUGH.md` files for release operations, schema notes, and manual demo testing.

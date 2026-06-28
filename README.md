@@ -6,7 +6,7 @@ The project is being built with Laravel as the main backend application foundati
 
 ## Current Status
 
-Phase 09: notifications, scheduler, and automation foundation.
+Phase 10: open-source release readiness foundation.
 
 Implemented so far:
 
@@ -31,9 +31,11 @@ Implemented so far:
 - In-app notification, unread count, mark-read, notification preference, queue health, and scheduler visibility endpoints
 - Scheduled jobs for low stock, expiring stock, case follow-up, pending batch approval, and pending donation reminders
 - Admin notification bell with unread badge and mark-read actions
+- Public release metadata endpoint at `/api/v1/version`
+- MIT license, contribution guide, code of conduct, security policy, issue templates, pull request template, release notes, deployment guide, architecture notes, database notes, roadmap, and demo walkthrough
 - Demo identity, case-management, finance, inventory, and aid distribution seed data for manual testing
 - Basic backend and frontend test setup
-- GitHub Actions CI workflow
+- GitHub Actions CI workflow with migration, seeder, backend, frontend, and OpenAPI YAML checks
 
 ## Tech Stack
 
@@ -63,8 +65,9 @@ Frontend:
 apps/
   api/      Laravel backend API
   admin/    React admin frontend
-openapi/    API documentation placeholder
-postman/    Postman collection placeholder
+openapi/    OpenAPI contract snapshot
+postman/    Postman collection
+.github/    CI workflow and contribution templates
 ```
 
 ## Local Setup
@@ -100,6 +103,8 @@ DB_PORT=3306
 DB_DATABASE=awniq
 DB_USERNAME=root
 DB_PASSWORD=
+APP_VERSION=0.10.0
+APP_COMMIT=local
 ```
 
 Run the API:
@@ -113,6 +118,12 @@ Health check:
 
 ```txt
 http://127.0.0.1:8000/api/v1/health
+```
+
+Version metadata:
+
+```txt
+http://127.0.0.1:8000/api/v1/version
 ```
 
 Expected response:
@@ -150,6 +161,19 @@ Public portal URL:
 ```txt
 http://127.0.0.1:5173/public
 ```
+
+## Public Release Documents
+
+- [Architecture](ARCHITECTURE.md)
+- [Database notes](DATABASE.md)
+- [Deployment guide](DEPLOYMENT.md)
+- [Demo walkthrough](DEMO_WALKTHROUGH.md)
+- [Roadmap](ROADMAP.md)
+- [Release notes](RELEASE_NOTES.md)
+- [Release checklist](RELEASE_CHECKLIST.md)
+- [Contributing guide](CONTRIBUTING.md)
+- [Security policy](SECURITY.md)
+- [Code of conduct](CODE_OF_CONDUCT.md)
 
 ## Demo Accounts
 
@@ -295,6 +319,13 @@ POST /api/v1/public/donations
 
 The public endpoints do not require authentication. They only return public-safe organization fields, public campaigns, aggregate statistics, and placeholder donation intent responses. Beneficiary, donor, case, inventory, receipt, and audit details are intentionally excluded.
 
+API artifacts:
+
+```txt
+openapi/openapi.yaml
+postman/Awniq.postman_collection.json
+```
+
 ## Test Commands
 
 Backend:
@@ -314,6 +345,15 @@ npm run test
 npm run build
 ```
 
+## Known MVP Limitations
+
+- Public donation intent is a placeholder and does not process real payments.
+- Email, SMS, WhatsApp, OCR, and mobile apps are not included in the MVP.
+- OpenAPI is manually maintained until generation/validation is automated further.
+- RTL and localization are planned but not complete.
+- Data retention policies are documented but not automated.
+- Screenshots are not checked in yet; capture them from seeded demo data before tagging a public release.
+
 ## GitHub Push Notes
 
 The following local planning files are intentionally ignored and should not be pushed:
@@ -330,11 +370,4 @@ Only `.env.example` files should be committed.
 
 ## Roadmap
 
-Next implementation phase:
-
-1. Open-source release readiness
-2. Contributor documentation
-3. Security and privacy hardening
-4. Deployment and production operations guide
-
-Release hardening will follow after the notification and automation foundation is stable.
+The MVP foundation is complete through Phase 10. See [ROADMAP.md](ROADMAP.md) for phase dependencies, MVP scope, and future work.

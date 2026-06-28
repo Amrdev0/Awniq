@@ -32,10 +32,12 @@ use App\Http\Controllers\Api\V1\StockMovementController;
 use App\Http\Controllers\Api\V1\StockReportController;
 use App\Http\Controllers\Api\V1\SystemHealthController;
 use App\Http\Controllers\Api\V1\UserController;
+use App\Http\Controllers\Api\V1\VersionController;
 use App\Http\Controllers\Api\V1\WarehouseController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('health', HealthController::class)->name('api.v1.health');
+Route::get('version', VersionController::class)->name('api.v1.version');
 
 Route::prefix('public')->middleware('throttle:60,1')->group(function (): void {
     Route::get('organization', [PublicPortalController::class, 'organization']);
