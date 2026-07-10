@@ -6,7 +6,7 @@ The project is being built with Laravel as the main backend application foundati
 
 ## Current Status
 
-Phase 10: open-source release readiness foundation.
+Phase 10 backend/API and open-source release readiness foundation are complete. Phase 11, the full admin control system frontend, is now the release-blocking next step.
 
 Implemented so far:
 
@@ -36,6 +36,10 @@ Implemented so far:
 - Demo identity, case-management, finance, inventory, and aid distribution seed data for manual testing
 - Basic backend and frontend test setup
 - GitHub Actions CI workflow with migration, seeder, backend, frontend, and OpenAPI YAML checks
+
+Important current gap:
+
+- The admin frontend is still mostly a single read-only operations overview. Awniq needs Phase 11 before a product MVP release: sidebar navigation, routed module pages, forms, detail pages, workflow actions, and permission-aware controls for every core module.
 
 ## Tech Stack
 
@@ -353,6 +357,7 @@ npm run build
 - RTL and localization are planned but not complete.
 - Data retention policies are documented but not automated.
 - Screenshots are not checked in yet; capture them from seeded demo data before tagging a public release.
+- Full admin control screens are not implemented yet; most operational writes still require API/Postman rather than browser UI.
 
 ## GitHub Push Notes
 
@@ -370,4 +375,4 @@ Only `.env.example` files should be committed.
 
 ## Roadmap
 
-The MVP foundation is complete through Phase 10. See [ROADMAP.md](ROADMAP.md) for phase dependencies, MVP scope, and future work.
+The backend/API foundation is complete through Phase 10, but the product MVP is blocked by Phase 11: the full admin control system frontend. See [ROADMAP.md](ROADMAP.md) for the updated release-blocking checklist.

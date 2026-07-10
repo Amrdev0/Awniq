@@ -20,6 +20,12 @@ Included in the first public release candidate:
 - Phase 09: notifications, scheduler, and automation.
 - Phase 10: open-source release readiness.
 
+Release blocker discovered after Phase 10:
+
+- Phase 11: full admin control system frontend.
+
+The backend/API foundation exists, but the current admin frontend is still a single read-only overview page. Awniq should not be considered a usable product MVP until staff can operate every core module from the browser through a sidebar-driven control panel.
+
 ## Phase Dependencies
 
 1. Identity and permissions must exist before any private operational module.
@@ -31,9 +37,11 @@ Included in the first public release candidate:
 7. Public transparency depends on finance, distribution, and portal settings.
 8. Notifications depend on workflows and operational data.
 9. Release readiness depends on all included MVP surfaces being documented and tested.
+10. Full admin control UI depends on the implemented backend APIs and blocks a true product release.
 
 ## Near-Term Priorities
 
+- Build the full admin control system frontend with sidebar navigation, routed module pages, forms, detail pages, workflow actions, and permission-aware controls.
 - Complete manual release smoke testing with seeded demo data.
 - Add real screenshots from the seeded demo.
 - Expand authorization tests around limited roles.
@@ -54,3 +62,34 @@ Included in the first public release candidate:
 - Import tools for legacy spreadsheet data.
 
 These are not part of the current MVP unless accepted into a scoped issue.
+
+## Phase 11: Admin Control System Frontend
+
+This phase is release-blocking.
+
+Required scope:
+
+- Admin shell with sidebar, topbar, breadcrumbs, and notification access.
+- Permission-aware navigation and action visibility.
+- Module pages for organization, branches, users, roles, permissions, beneficiaries, case files, donors, campaigns, donations, warehouses, inventory, stock, aid batches, distributions, reports, exports, public portal settings, notifications, and audit logs.
+- Create/edit/detail screens for core records.
+- Workflow actions for review, approval, rejection, donation confirmation, receipt generation, stock receipt/adjustment, batch approval, delivery confirmation, failure, rescheduling, and proof upload.
+- Frontend validation, loading, empty, error, unauthorized, and success states.
+- Browser-based demo walkthrough without relying on Postman.
+
+Checklist:
+
+- [ ] Build admin shell and sidebar navigation.
+- [ ] Move dashboard to a real `/dashboard` route.
+- [ ] Add route map for all operational modules.
+- [ ] Expand frontend API clients with write operations.
+- [ ] Implement organization, branches, users, roles, permissions, and audit log screens.
+- [ ] Implement beneficiary, family member, case file, note, and document screens.
+- [ ] Implement donor, campaign, donation, allocation, payment transaction, and receipt screens.
+- [ ] Implement warehouse, inventory item, stock lot, stock movement, low-stock, and expiring-stock screens.
+- [ ] Implement aid batch, distribution, item, stock-check, delivery, failure, reschedule, and proof screens.
+- [ ] Implement reports, exports, public portal settings, notifications, queue health, and scheduler screens.
+- [ ] Add permission-aware UI tests for limited roles.
+- [ ] Run browser manual demo walkthrough.
+- [ ] Capture seeded demo screenshots.
+- [ ] Update release checklist when complete.

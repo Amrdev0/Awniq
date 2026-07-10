@@ -34,6 +34,7 @@ This release candidate packages the Awniq MVP foundation for public review and m
 - No SMS or WhatsApp channel exists yet.
 - No mobile app exists yet.
 - Screenshots are not checked in yet.
+- The admin frontend is not yet a full control system; most module write workflows still need dedicated browser pages and forms.
 - OpenAPI is manually maintained and can drift if contributors forget to update it.
 - RTL and localization are planned but not complete.
 - Data retention policies are documented but not automated.
