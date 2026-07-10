@@ -43,8 +43,11 @@ export type StockLot = {
   id: number
   source_type: string
   source_id: number | null
+  quantity?: string
   remaining_quantity: string
+  reserved_quantity?: string
   expiry_date: string | null
+  received_at?: string
   warehouse?: {
     code: string
     name: string
@@ -56,6 +59,28 @@ export type StockLot = {
   }
 }
 
+export type StockMovement = {
+  id: number
+  movement_type: string
+  quantity: string
+  notes: string | null
+  created_at: string
+  warehouse?: {
+    code: string
+    name: string
+  }
+  inventory_item?: {
+    sku: string
+    name: string
+    unit: string
+  }
+  stock_lot?: {
+    id: number
+    source_type: string
+    source_id: number | null
+  }
+}
+
 export async function getWarehouses() {
   const response = await apiRequest<CollectionResponse<Warehouse>>('/warehouses')
 
@@ -64,6 +89,18 @@ export async function getWarehouses() {
 
 export async function getInventoryItems() {
   const response = await apiRequest<CollectionResponse<InventoryItem>>('/inventory-items')
+
+  return response.data
+}
+
+export async function getStockLots() {
+  const response = await apiRequest<CollectionResponse<StockLot>>('/stock/lots')
+
+  return response.data
+}
+
+export async function getStockMovements() {
+  const response = await apiRequest<CollectionResponse<StockMovement>>('/stock/movements')
 
   return response.data
 }

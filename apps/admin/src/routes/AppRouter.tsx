@@ -1,20 +1,148 @@
-import { useEffect, useState } from 'react'
-import type { FormEvent, ReactNode } from 'react'
-import { createBrowserRouter, RouterProvider } from 'react-router'
+import { useEffect, useMemo, useState } from 'react'
+import type { ComponentType, FormEvent, ReactNode } from 'react'
+import { createBrowserRouter, Navigate, NavLink, Outlet, RouterProvider, useLocation } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { Bell, Building2, Check, FileText, GitBranch, ListChecks, LogOut, ShieldCheck, Users } from 'lucide-react'
+import {
+  Bell,
+  Boxes,
+  Building2,
+  CalendarClock,
+  Check,
+  ClipboardCheck,
+  ClipboardList,
+  DollarSign,
+  FileBarChart,
+  FileText,
+  GitBranch,
+  Home,
+  Landmark,
+  ListChecks,
+  LogOut,
+  Package,
+  Receipt,
+  Settings,
+  ShieldCheck,
+  Truck,
+  Users,
+  Warehouse,
+} from 'lucide-react'
 import { clearStoredToken, getStoredToken, storeToken } from '../app/auth'
 import { EmptyState } from '../components/ui/EmptyState'
 import { LoadingState } from '../components/ui/LoadingState'
+import { UnauthorizedState } from '../components/ui/UnauthorizedState'
 import { getAidBatches } from '../services/api/aid'
-import { getMe, login, logout } from '../services/api/auth'
+import { getMe, login, logout, type CurrentUser } from '../services/api/auth'
 import { getBeneficiaries, getCaseFiles } from '../services/api/cases'
 import { getCampaigns, getDonations, getDonors } from '../services/api/finance'
 import { getAuditLogs, getBranches, getOrganization, getRoles, getUsers } from '../services/api/identity'
-import { getExpiringStock, getInventoryItems, getLowStock, getStockSummary, getWarehouses } from '../services/api/inventory'
-import { getNotifications, getUnreadNotificationCount, markAllNotificationsRead, markNotificationRead, type OperationalNotification } from '../services/api/notifications'
+import {
+  getExpiringStock,
+  getInventoryItems,
+  getLowStock,
+  getStockLots,
+  getStockMovements,
+  getStockSummary,
+  getWarehouses,
+} from '../services/api/inventory'
+import {
+  getNotificationPreferences,
+  getNotifications,
+  getQueueHealth,
+  getScheduledJobs,
+  getUnreadNotificationCount,
+  markAllNotificationsRead,
+  markNotificationRead,
+  type OperationalNotification,
+} from '../services/api/notifications'
 import { getDashboardReport } from '../services/api/reports'
 import { PublicCampaignDetailsPage, PublicPortalPage } from './PublicPortalPage'
+
+type NavItem = {
+  label: string
+  path: string
+  icon: ComponentType<{ size?: number }>
+  permissions?: string[]
+}
+
+type NavGroup = {
+  label: string
+  items: NavItem[]
+}
+
+const navGroups: NavGroup[] = [
+  {
+    label: 'Home',
+    items: [{ label: 'Dashboard', path: '/dashboard', icon: Home, permissions: ['dashboard.view'] }],
+  },
+  {
+    label: 'Identity',
+    items: [
+      { label: 'Organization', path: '/organization', icon: Building2, permissions: ['organization.view'] },
+      { label: 'Branches', path: '/branches', icon: GitBranch, permissions: ['branches.view'] },
+      { label: 'Users', path: '/users', icon: Users, permissions: ['users.view'] },
+      { label: 'Roles & Permissions', path: '/roles', icon: ShieldCheck, permissions: ['roles.view', 'permissions.view'] },
+      { label: 'Audit Logs', path: '/audit-logs', icon: ClipboardList, permissions: ['audit_logs.view'] },
+    ],
+  },
+  {
+    label: 'Cases',
+    items: [
+      { label: 'Beneficiaries', path: '/beneficiaries', icon: Users, permissions: ['beneficiaries.view'] },
+      { label: 'Case Files', path: '/case-files', icon: FileText, permissions: ['case_files.view'] },
+    ],
+  },
+  {
+    label: 'Finance',
+    items: [
+      { label: 'Donors', path: '/donors', icon: Users, permissions: ['donors.view'] },
+      { label: 'Campaigns', path: '/campaigns', icon: Landmark, permissions: ['campaigns.view'] },
+      { label: 'Donations', path: '/donations', icon: DollarSign, permissions: ['donations.view'] },
+      { label: 'Payments & Receipts', path: '/finance/payments', icon: Receipt, permissions: ['payment_transactions.view', 'receipts.view'] },
+    ],
+  },
+  {
+    label: 'Inventory',
+    items: [
+      { label: 'Warehouses', path: '/warehouses', icon: Warehouse, permissions: ['warehouses.view'] },
+      { label: 'Inventory Items', path: '/inventory-items', icon: Package, permissions: ['inventory_items.view'] },
+      { label: 'Stock Summary', path: '/stock/summary', icon: Boxes, permissions: ['stock_reports.view'] },
+      { label: 'Stock Lots', path: '/stock/lots', icon: Boxes, permissions: ['stock_lots.view'] },
+      { label: 'Stock Movements', path: '/stock/movements', icon: ListChecks, permissions: ['stock_movements.view'] },
+      { label: 'Low Stock', path: '/stock/low-stock', icon: ClipboardCheck, permissions: ['stock_reports.view'] },
+      { label: 'Expiring Stock', path: '/stock/expiring', icon: CalendarClock, permissions: ['stock_reports.view'] },
+    ],
+  },
+  {
+    label: 'Aid',
+    items: [
+      { label: 'Aid Batches', path: '/aid-batches', icon: Truck, permissions: ['aid_batches.view'] },
+      { label: 'Aid Distributions', path: '/aid-distributions', icon: ClipboardCheck, permissions: ['aid_distributions.view'] },
+    ],
+  },
+  {
+    label: 'Visibility',
+    items: [
+      {
+        label: 'Reports & Exports',
+        path: '/reports',
+        icon: FileBarChart,
+        permissions: [
+          'reports.donations.view',
+          'reports.campaigns.view',
+          'reports.beneficiaries.view',
+          'reports.case_files.view',
+          'reports.distributions.view',
+          'reports.inventory.view',
+          'reports.audit_logs.view',
+          'exports.view',
+        ],
+      },
+      { label: 'Public Portal Settings', path: '/settings/public-portal', icon: Settings, permissions: ['public_portal_settings.view'] },
+      { label: 'Notifications', path: '/notifications', icon: Bell, permissions: ['notifications.view'] },
+      { label: 'System', path: '/system', icon: Settings, permissions: ['system.queue.view', 'system.scheduler.view'] },
+    ],
+  },
+]
 
 function LoginPage({ onAuthenticated }: { onAuthenticated: (token: string) => void }) {
   const queryClient = useQueryClient()
@@ -44,35 +172,17 @@ function LoginPage({ onAuthenticated }: { onAuthenticated: (token: string) => vo
 
         <label className="mb-4 block text-sm">
           <span className="mb-1 block font-medium text-[#10201a]">Email</span>
-          <input
-            className="w-full rounded-md border border-[#c8d4cf] px-3 py-2"
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            type="email"
-          />
+          <input className="w-full rounded-md border border-[#c8d4cf] px-3 py-2" value={email} onChange={(event) => setEmail(event.target.value)} type="email" />
         </label>
 
         <label className="mb-5 block text-sm">
           <span className="mb-1 block font-medium text-[#10201a]">Password</span>
-          <input
-            className="w-full rounded-md border border-[#c8d4cf] px-3 py-2"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            type="password"
-          />
+          <input className="w-full rounded-md border border-[#c8d4cf] px-3 py-2" value={password} onChange={(event) => setPassword(event.target.value)} type="password" />
         </label>
 
-        {loginMutation.isError ? (
-          <div className="mb-4 rounded-md border border-[#efd8bb] bg-[#fff8ed] p-3 text-sm text-[#6c4b1f]">
-            Login failed. Check the API server and credentials.
-          </div>
-        ) : null}
+        {loginMutation.isError ? <div className="mb-4 rounded-md border border-[#efd8bb] bg-[#fff8ed] p-3 text-sm text-[#6c4b1f]">Login failed. Check the API server and credentials.</div> : null}
 
-        <button
-          className="w-full rounded-md bg-[#236b55] px-4 py-2 font-medium text-white disabled:opacity-60"
-          disabled={loginMutation.isPending}
-          type="submit"
-        >
+        <button className="w-full rounded-md bg-[#236b55] px-4 py-2 font-medium text-white disabled:opacity-60" disabled={loginMutation.isPending} type="submit">
           {loginMutation.isPending ? 'Signing in...' : 'Sign in'}
         </button>
       </form>
@@ -80,44 +190,10 @@ function LoginPage({ onAuthenticated }: { onAuthenticated: (token: string) => vo
   )
 }
 
-function AdminPage() {
+function AdminRouteGate() {
   const queryClient = useQueryClient()
   const [authToken, setAuthToken] = useState(() => getStoredToken())
-  const [notificationsOpen, setNotificationsOpen] = useState(false)
   const me = useQuery({ queryKey: ['me'], queryFn: getMe, enabled: Boolean(authToken) })
-  const organization = useQuery({ queryKey: ['organization'], queryFn: getOrganization, enabled: Boolean(me.data) })
-  const branches = useQuery({ queryKey: ['branches'], queryFn: getBranches, enabled: Boolean(me.data) })
-  const users = useQuery({ queryKey: ['users'], queryFn: getUsers, enabled: Boolean(me.data) })
-  const roles = useQuery({ queryKey: ['roles'], queryFn: getRoles, enabled: Boolean(me.data) })
-  const auditLogs = useQuery({ queryKey: ['audit-logs'], queryFn: getAuditLogs, enabled: Boolean(me.data) })
-  const beneficiaries = useQuery({ queryKey: ['beneficiaries'], queryFn: getBeneficiaries, enabled: Boolean(me.data) })
-  const caseFiles = useQuery({ queryKey: ['case-files'], queryFn: getCaseFiles, enabled: Boolean(me.data) })
-  const donors = useQuery({ queryKey: ['donors'], queryFn: getDonors, enabled: Boolean(me.data) })
-  const campaigns = useQuery({ queryKey: ['campaigns'], queryFn: getCampaigns, enabled: Boolean(me.data) })
-  const donations = useQuery({ queryKey: ['donations'], queryFn: getDonations, enabled: Boolean(me.data) })
-  const warehouses = useQuery({ queryKey: ['warehouses'], queryFn: getWarehouses, enabled: Boolean(me.data) })
-  const inventoryItems = useQuery({ queryKey: ['inventory-items'], queryFn: getInventoryItems, enabled: Boolean(me.data) })
-  const stockSummary = useQuery({ queryKey: ['stock-summary'], queryFn: getStockSummary, enabled: Boolean(me.data) })
-  const lowStock = useQuery({ queryKey: ['stock-low-stock'], queryFn: getLowStock, enabled: Boolean(me.data) })
-  const expiringStock = useQuery({ queryKey: ['stock-expiring'], queryFn: getExpiringStock, enabled: Boolean(me.data) })
-  const aidBatches = useQuery({ queryKey: ['aid-batches'], queryFn: getAidBatches, enabled: Boolean(me.data) })
-  const dashboardReport = useQuery({ queryKey: ['reports-dashboard'], queryFn: getDashboardReport, enabled: Boolean(me.data) })
-  const notifications = useQuery({ queryKey: ['notifications'], queryFn: getNotifications, enabled: Boolean(me.data), refetchInterval: 30000 })
-  const unreadNotifications = useQuery({ queryKey: ['notifications-unread-count'], queryFn: getUnreadNotificationCount, enabled: Boolean(me.data), refetchInterval: 30000 })
-  const markReadMutation = useMutation({
-    mutationFn: markNotificationRead,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      void queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] })
-    },
-  })
-  const markAllReadMutation = useMutation({
-    mutationFn: markAllNotificationsRead,
-    onSuccess: () => {
-      void queryClient.invalidateQueries({ queryKey: ['notifications'] })
-      void queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] })
-    },
-  })
   const logoutMutation = useMutation({
     mutationFn: logout,
     onSettled: () => {
@@ -150,214 +226,651 @@ function AdminPage() {
     return <LoginPage onAuthenticated={setAuthToken} />
   }
 
+  return <AdminShell me={me.data} onLogout={() => logoutMutation.mutate()} />
+}
+
+function AdminShell({ me, onLogout }: { me: CurrentUser; onLogout: () => void }) {
+  const queryClient = useQueryClient()
+  const location = useLocation()
+  const [mobileNavOpen, setMobileNavOpen] = useState(false)
+  const [notificationsOpen, setNotificationsOpen] = useState(false)
+  const visibleGroups = useMemo(
+    () =>
+      navGroups
+        .map((group) => ({
+          ...group,
+          items: group.items.filter((item) => canSeeNavItem(me, item)),
+        }))
+        .filter((group) => group.items.length > 0),
+    [me],
+  )
+  const currentItem = visibleGroups.flatMap((group) => group.items).find((item) => location.pathname === item.path || location.pathname.startsWith(`${item.path}/`))
+  const organization = useQuery({ queryKey: ['organization'], queryFn: getOrganization })
+  const notifications = useQuery({ queryKey: ['notifications'], queryFn: getNotifications, refetchInterval: 30000 })
+  const unreadNotifications = useQuery({ queryKey: ['notifications-unread-count'], queryFn: getUnreadNotificationCount, refetchInterval: 30000 })
+  const markReadMutation = useMutation({
+    mutationFn: markNotificationRead,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      void queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] })
+    },
+  })
+  const markAllReadMutation = useMutation({
+    mutationFn: markAllNotificationsRead,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['notifications'] })
+      void queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] })
+    },
+  })
+
   return (
     <main className="min-h-svh bg-[#f6f8f7] text-[#172026]">
-      <div className="mx-auto w-full max-w-6xl px-6 py-8">
-        <header className="mb-6 flex flex-wrap items-center justify-between gap-4 border-b border-[#d9e1de] pb-5">
-          <div>
-            <p className="text-sm font-medium uppercase tracking-wide text-[#4b635b]">Operations foundation</p>
-            <h1 className="mt-2 text-3xl font-semibold text-[#10201a]">Awniq Admin</h1>
-            <p className="mt-1 text-sm text-[#52645e]">
-              Signed in as {me.data.name} ({me.data.email})
-            </p>
+      <div className="flex min-h-svh">
+        <aside className="hidden w-72 shrink-0 border-r border-[#d9e1de] bg-white lg:block">
+          <SidebarNav groups={visibleGroups} onNavigate={() => undefined} />
+        </aside>
+
+        {mobileNavOpen ? (
+          <div className="fixed inset-0 z-30 lg:hidden">
+            <button className="absolute inset-0 bg-black/30" onClick={() => setMobileNavOpen(false)} type="button" aria-label="Close navigation" />
+            <aside className="relative h-full w-[min(20rem,88vw)] border-r border-[#d9e1de] bg-white">
+              <SidebarNav groups={visibleGroups} onNavigate={() => setMobileNavOpen(false)} />
+            </aside>
           </div>
-          <div className="relative flex items-center gap-2">
-            <button
-              className="relative inline-flex h-10 w-10 items-center justify-center rounded-md border border-[#c8d4cf] bg-white text-[#24332e]"
-              onClick={() => setNotificationsOpen((open) => !open)}
-              title="Notifications"
-              type="button"
-            >
-              <Bell size={18} aria-hidden="true" />
-              {(unreadNotifications.data ?? 0) > 0 ? (
-                <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-[#a44a3f] px-1.5 py-0.5 text-center text-xs font-semibold text-white">
-                  {unreadNotifications.data}
-                </span>
-              ) : null}
-            </button>
-            {notificationsOpen ? (
-              <NotificationDropdown
-                isLoading={notifications.isPending}
-                notifications={notifications.data}
-                onMarkAllRead={() => markAllReadMutation.mutate()}
-                onMarkRead={(id) => markReadMutation.mutate(id)}
-              />
-            ) : null}
-            <button
-              className="inline-flex items-center gap-2 rounded-md border border-[#c8d4cf] bg-white px-3 py-2 text-sm"
-              onClick={() => logoutMutation.mutate()}
-              type="button"
-            >
-              <LogOut size={16} aria-hidden="true" />
-              Logout
-            </button>
+        ) : null}
+
+        <section className="min-w-0 flex-1">
+          <header className="sticky top-0 z-20 border-b border-[#d9e1de] bg-[#f6f8f7]/95 px-4 py-4 backdrop-blur md:px-6">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              <div className="flex min-w-0 items-center gap-3">
+                <button className="rounded-md border border-[#c8d4cf] bg-white px-3 py-2 text-sm font-medium lg:hidden" onClick={() => setMobileNavOpen(true)} type="button">
+                  Menu
+                </button>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium uppercase tracking-wide text-[#4b635b]">{organization.data?.name ?? 'Awniq'}</p>
+                  <h1 className="truncate text-xl font-semibold text-[#10201a]">{currentItem?.label ?? 'Dashboard'}</h1>
+                </div>
+              </div>
+
+              <div className="relative flex items-center gap-2">
+                <button
+                  className="relative inline-flex h-10 w-10 items-center justify-center rounded-md border border-[#c8d4cf] bg-white text-[#24332e]"
+                  onClick={() => setNotificationsOpen((open) => !open)}
+                  title="Notifications"
+                  type="button"
+                >
+                  <Bell size={18} aria-hidden="true" />
+                  {(unreadNotifications.data ?? 0) > 0 ? (
+                    <span className="absolute -right-1 -top-1 min-w-5 rounded-full bg-[#a44a3f] px-1.5 py-0.5 text-center text-xs font-semibold text-white">{unreadNotifications.data}</span>
+                  ) : null}
+                </button>
+                {notificationsOpen ? (
+                  <NotificationDropdown
+                    isLoading={notifications.isPending}
+                    notifications={notifications.data}
+                    onMarkAllRead={() => markAllReadMutation.mutate()}
+                    onMarkRead={(id) => markReadMutation.mutate(id)}
+                  />
+                ) : null}
+                <div className="hidden text-right text-xs text-[#52645e] sm:block">
+                  <p className="font-medium text-[#10201a]">{me.name}</p>
+                  <p>{me.email}</p>
+                </div>
+                <button className="inline-flex items-center gap-2 rounded-md border border-[#c8d4cf] bg-white px-3 py-2 text-sm" onClick={onLogout} type="button">
+                  <LogOut size={16} aria-hidden="true" />
+                  Logout
+                </button>
+              </div>
+            </div>
+          </header>
+
+          <div className="px-4 py-6 md:px-6">
+            <Outlet />
           </div>
-        </header>
-
-        <div className="grid gap-4 lg:grid-cols-2">
-          <section className="lg:col-span-2">
-            <Panel icon={<ListChecks size={20} />} title="Dashboard Metrics">
-              {dashboardReport.data ? (
-                <KeyValueRows
-                  rows={[
-                    ['Donations this month', `${dashboardReport.data.metrics.total_donations_this_month} EGP`],
-                    ['Active campaigns', String(dashboardReport.data.metrics.active_campaigns)],
-                    ['Pending cases', String(dashboardReport.data.metrics.pending_cases)],
-                    ['Approved beneficiaries', String(dashboardReport.data.metrics.approved_beneficiaries)],
-                    ['Aid batches in progress', String(dashboardReport.data.metrics.aid_batches_in_progress)],
-                    ['Completed distributions', String(dashboardReport.data.metrics.completed_distributions)],
-                    ['Low stock items', String(dashboardReport.data.metrics.low_stock_items)],
-                    ['Expiring stock lots', String(dashboardReport.data.metrics.expiring_stock_lots)],
-                  ]}
-                />
-              ) : (
-                <LoadingOrEmpty isLoading={dashboardReport.isPending} label="Loading dashboard metrics" />
-              )}
-            </Panel>
-          </section>
-
-          <Panel icon={<Building2 size={20} />} title="Organization">
-            {organization.data ? (
-              <KeyValueRows
-                rows={[
-                  ['Name', organization.data.name],
-                  ['Slug', organization.data.slug],
-                  ['Currency', organization.data.default_currency],
-                  ['Timezone', organization.data.timezone],
-                  ['Status', organization.data.status],
-                ]}
-              />
-            ) : (
-              <LoadingOrEmpty isLoading={organization.isPending} label="Loading organization" />
-            )}
-          </Panel>
-
-          <Panel icon={<GitBranch size={20} />} title="Branches">
-            <SimpleList items={branches.data} label="branches" render={(branch) => `${branch.code} - ${branch.name} (${branch.status})`} />
-          </Panel>
-
-          <Panel icon={<Users size={20} />} title="Users">
-            <SimpleList items={users.data} label="users" render={(user) => `${user.name} - ${user.email} - ${user.status}`} />
-          </Panel>
-
-          <Panel icon={<ShieldCheck size={20} />} title="Roles">
-            <SimpleList items={roles.data} label="roles" render={(role) => `${role.name} (${role.permissions?.length ?? 0} permissions)`} />
-          </Panel>
-
-          <Panel icon={<Users size={20} />} title="Beneficiaries">
-            <SimpleList
-              items={beneficiaries.data}
-              label="beneficiaries"
-              render={(beneficiary) =>
-                `${beneficiary.code} - ${beneficiary.full_name} - ${beneficiary.status} - ${beneficiary.vulnerability_level} - ${beneficiary.household_size} household`
-              }
-            />
-          </Panel>
-
-          <Panel icon={<FileText size={20} />} title="Case Files">
-            <SimpleList
-              items={caseFiles.data}
-              label="case files"
-              render={(caseFile) =>
-                `${caseFile.case_number} - ${caseFile.beneficiary?.full_name ?? 'Unassigned'} - ${caseFile.case_type} - ${caseFile.status} - ${caseFile.priority}`
-              }
-            />
-          </Panel>
-
-          <Panel icon={<Users size={20} />} title="Donors">
-            <SimpleList
-              items={donors.data}
-              label="donors"
-              render={(donor) => `${donor.name} - ${donor.donor_type} - ${donor.status} - ${donor.donations_count ?? 0} donations`}
-            />
-          </Panel>
-
-          <Panel icon={<ListChecks size={20} />} title="Campaigns">
-            <SimpleList
-              items={campaigns.data}
-              label="campaigns"
-              render={(campaign) =>
-                `${campaign.title} - ${campaign.status} - ${campaign.collected_amount}/${campaign.goal_amount} ${campaign.currency} - ${campaign.visibility}`
-              }
-            />
-          </Panel>
-
-          <section className="lg:col-span-2">
-            <Panel icon={<FileText size={20} />} title="Donations">
-              <SimpleList
-                items={donations.data}
-                label="donations"
-                render={(donation) =>
-                  `${donation.donation_number} - ${donation.donor?.name ?? 'Anonymous'} - ${donation.amount} ${donation.currency} - ${donation.payment_status}/${donation.donation_status}`
-                }
-              />
-            </Panel>
-          </section>
-
-          <Panel icon={<Building2 size={20} />} title="Warehouses">
-            <SimpleList
-              items={warehouses.data}
-              label="warehouses"
-              render={(warehouse) => `${warehouse.code} - ${warehouse.name} - ${warehouse.status} - ${warehouse.stock_lots_count ?? 0} lots`}
-            />
-          </Panel>
-
-          <Panel icon={<ListChecks size={20} />} title="Inventory Items">
-            <SimpleList
-              items={inventoryItems.data}
-              label="inventory items"
-              render={(item) => `${item.sku} - ${item.name} - ${item.category} - min ${item.minimum_stock_level} ${item.unit}`}
-            />
-          </Panel>
-
-          <Panel icon={<ListChecks size={20} />} title="Stock Summary">
-            <SimpleList
-              items={stockSummary.data}
-              label="stock summary rows"
-              render={(row) => `${row.sku} - ${row.available_quantity} ${row.unit} available - ${row.low_stock ? 'low stock' : 'healthy'}`}
-            />
-          </Panel>
-
-          <Panel icon={<FileText size={20} />} title="Low Stock">
-            <SimpleList
-              items={lowStock.data}
-              label="low stock rows"
-              render={(row) => `${row.sku} - ${row.available_quantity}/${row.minimum_stock_level} ${row.unit}`}
-            />
-          </Panel>
-
-          <section className="lg:col-span-2">
-            <Panel icon={<FileText size={20} />} title="Expiring Stock">
-              <SimpleList
-                items={expiringStock.data}
-                label="expiring stock lots"
-                render={(lot) =>
-                  `${lot.inventory_item?.sku ?? 'Unknown item'} - ${lot.remaining_quantity} ${lot.inventory_item?.unit ?? ''} - ${lot.warehouse?.code ?? 'No warehouse'} - expires ${lot.expiry_date ?? '-'}`
-                }
-              />
-            </Panel>
-          </section>
-
-          <section className="lg:col-span-2">
-            <Panel icon={<ListChecks size={20} />} title="Aid Batches">
-              <SimpleList
-                items={aidBatches.data}
-                label="aid batches"
-                render={(batch) =>
-                  `${batch.batch_number} - ${batch.title} - ${batch.status} - ${batch.distributions_count ?? 0} distributions - ${batch.warehouse?.code ?? 'No warehouse'}`
-                }
-              />
-            </Panel>
-          </section>
-
-          <section className="lg:col-span-2">
-            <Panel icon={<ListChecks size={20} />} title="Recent Audit Logs">
-              <SimpleList items={auditLogs.data} label="audit logs" render={(log) => `${log.action} - ${log.entity_type} #${log.entity_id ?? '-'} - ${log.created_at}`} />
-            </Panel>
-          </section>
-        </div>
+        </section>
       </div>
     </main>
+  )
+}
+
+function SidebarNav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate: () => void }) {
+  return (
+    <nav className="flex h-full flex-col overflow-y-auto px-4 py-5">
+      <div className="mb-6 border-b border-[#edf1ef] pb-4">
+        <p className="text-sm font-medium uppercase tracking-wide text-[#4b635b]">Awniq</p>
+        <p className="mt-1 text-lg font-semibold text-[#10201a]">Control System</p>
+      </div>
+
+      <div className="space-y-5">
+        {groups.map((group) => (
+          <div key={group.label}>
+            <p className="mb-2 px-2 text-xs font-semibold uppercase tracking-wide text-[#7a8b85]">{group.label}</p>
+            <ul className="space-y-1">
+              {group.items.map((item) => {
+                const Icon = item.icon
+
+                return (
+                  <li key={item.path}>
+                    <NavLink
+                      className={({ isActive }) =>
+                        [
+                          'flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium',
+                          isActive ? 'bg-[#e8f2ee] text-[#174b3b]' : 'text-[#394a44] hover:bg-[#f1f5f3] hover:text-[#10201a]',
+                        ].join(' ')
+                      }
+                      onClick={onNavigate}
+                      to={item.path}
+                    >
+                      <Icon size={17} />
+                      <span>{item.label}</span>
+                    </NavLink>
+                  </li>
+                )
+              })}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </nav>
+  )
+}
+
+function DashboardPage() {
+  const dashboardReport = useQuery({ queryKey: ['reports-dashboard'], queryFn: getDashboardReport })
+
+  return (
+    <ModulePage
+      description="Operational metrics stay as the first screen, but the rest of the system now lives behind real module routes."
+      title="Dashboard"
+      planned={['Link metric cards to filtered module pages.', 'Add charts after module workflows are usable.']}
+    >
+      <Panel icon={<ListChecks size={20} />} title="Dashboard Metrics">
+        {dashboardReport.data ? (
+          <KeyValueRows
+            rows={[
+              ['Donations this month', `${dashboardReport.data.metrics.total_donations_this_month} EGP`],
+              ['Active campaigns', String(dashboardReport.data.metrics.active_campaigns)],
+              ['Pending cases', String(dashboardReport.data.metrics.pending_cases)],
+              ['Approved beneficiaries', String(dashboardReport.data.metrics.approved_beneficiaries)],
+              ['Aid batches in progress', String(dashboardReport.data.metrics.aid_batches_in_progress)],
+              ['Completed distributions', String(dashboardReport.data.metrics.completed_distributions)],
+              ['Low stock items', String(dashboardReport.data.metrics.low_stock_items)],
+              ['Expiring stock lots', String(dashboardReport.data.metrics.expiring_stock_lots)],
+            ]}
+          />
+        ) : (
+          <LoadingOrEmpty isError={dashboardReport.isError} isLoading={dashboardReport.isPending} label="Loading dashboard metrics" />
+        )}
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function OrganizationPage() {
+  const organization = useQuery({ queryKey: ['organization'], queryFn: getOrganization })
+
+  return (
+    <ModulePage description="Manage the organization profile and operating defaults." title="Organization" planned={['Add edit form for profile, currency, timezone, contact, and language fields.']}>
+      <Panel icon={<Building2 size={20} />} title="Organization Profile">
+        {organization.data ? (
+          <KeyValueRows
+            rows={[
+              ['Name', organization.data.name],
+              ['Slug', organization.data.slug],
+              ['Email', organization.data.email],
+              ['Currency', organization.data.default_currency],
+              ['Timezone', organization.data.timezone],
+              ['Status', organization.data.status],
+            ]}
+          />
+        ) : (
+          <LoadingOrEmpty isError={organization.isError} isLoading={organization.isPending} label="Loading organization" />
+        )}
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function BranchesPage() {
+  const branches = useQuery({ queryKey: ['branches'], queryFn: getBranches })
+
+  return (
+    <ModulePage description="Manage operational branches and branch contact details." title="Branches" planned={['Add create/edit/detail pages.', 'Add delete/deactivate action where allowed.']}>
+      <Panel icon={<GitBranch size={20} />} title="Branches">
+        <RecordList isError={branches.isError} isLoading={branches.isPending} items={branches.data} label="branches" render={(branch) => `${branch.code} - ${branch.name} - ${branch.city ?? 'No city'} - ${branch.status}`} />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function UsersPage() {
+  const users = useQuery({ queryKey: ['users'], queryFn: getUsers })
+
+  return (
+    <ModulePage description="Manage staff accounts, status, branches, and roles." title="Users" planned={['Add create/edit forms.', 'Add enable/disable and role sync controls.']}>
+      <Panel icon={<Users size={20} />} title="Users">
+        <RecordList isError={users.isError} isLoading={users.isPending} items={users.data} label="users" render={(user) => `${user.name} - ${user.email} - ${user.status} - ${(user.roles ?? []).join(', ') || 'No role'}`} />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function RolesPage() {
+  const roles = useQuery({ queryKey: ['roles'], queryFn: getRoles })
+
+  return (
+    <ModulePage description="Review roles and permission groups before role editing is enabled." title="Roles & Permissions" planned={['Add permission grouping.', 'Add custom role create/edit where backend allows it.']}>
+      <Panel icon={<ShieldCheck size={20} />} title="Roles">
+        <RecordList isError={roles.isError} isLoading={roles.isPending} items={roles.data} label="roles" render={(role) => `${role.name} - ${role.is_protected ? 'protected' : 'custom'} - ${role.permissions?.length ?? 0} permissions`} />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function AuditLogsPage() {
+  const auditLogs = useQuery({ queryKey: ['audit-logs'], queryFn: getAuditLogs })
+
+  return (
+    <ModulePage description="Inspect audited state changes and sensitive operations." title="Audit Logs" planned={['Add filters by date/action/user/entity.', 'Add detail view with old and new values.']}>
+      <Panel icon={<ClipboardList size={20} />} title="Recent Audit Logs">
+        <RecordList isError={auditLogs.isError} isLoading={auditLogs.isPending} items={auditLogs.data} label="audit logs" render={(log) => `${log.action} - ${log.entity_type} #${log.entity_id ?? '-'} - ${formatDate(log.created_at)}`} />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function BeneficiariesPage() {
+  const beneficiaries = useQuery({ queryKey: ['beneficiaries'], queryFn: getBeneficiaries })
+
+  return (
+    <ModulePage description="Register beneficiaries, review eligibility, and manage household details." title="Beneficiaries" planned={['Add create/edit/detail pages.', 'Add review, approve, reject, suspend, and reactivate actions.', 'Add family member management.']}>
+      <Panel icon={<Users size={20} />} title="Beneficiaries">
+        <RecordList
+          isError={beneficiaries.isError}
+          isLoading={beneficiaries.isPending}
+          items={beneficiaries.data}
+          label="beneficiaries"
+          render={(beneficiary) => (
+            <>
+              <StatusBadge status={beneficiary.status} /> {beneficiary.code} - {beneficiary.full_name} - {beneficiary.vulnerability_level} - {beneficiary.household_size} household
+            </>
+          )}
+        />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function CaseFilesPage() {
+  const caseFiles = useQuery({ queryKey: ['case-files'], queryFn: getCaseFiles })
+
+  return (
+    <ModulePage description="Manage case files, notes, documents, and approval workflows." title="Case Files" planned={['Add create/edit/detail pages.', 'Add notes and documents screens.', 'Add submit, approve, reject, close, and reopen actions.']}>
+      <Panel icon={<FileText size={20} />} title="Case Files">
+        <RecordList
+          isError={caseFiles.isError}
+          isLoading={caseFiles.isPending}
+          items={caseFiles.data}
+          label="case files"
+          render={(caseFile) => (
+            <>
+              <StatusBadge status={caseFile.status} /> {caseFile.case_number} - {caseFile.beneficiary?.full_name ?? 'Unassigned'} - {caseFile.case_type} - {caseFile.priority}
+            </>
+          )}
+        />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function DonorsPage() {
+  const donors = useQuery({ queryKey: ['donors'], queryFn: getDonors })
+
+  return (
+    <ModulePage description="Manage donor records and donation history." title="Donors" planned={['Add create/edit/detail pages.', 'Add donor donation history view.']}>
+      <Panel icon={<Users size={20} />} title="Donors">
+        <RecordList isError={donors.isError} isLoading={donors.isPending} items={donors.data} label="donors" render={(donor) => `${donor.name} - ${donor.donor_type} - ${donor.status} - ${donor.donations_count ?? 0} donations`} />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function CampaignsPage() {
+  const campaigns = useQuery({ queryKey: ['campaigns'], queryFn: getCampaigns })
+
+  return (
+    <ModulePage description="Manage fundraising campaigns and visibility." title="Campaigns" planned={['Add create/edit/detail pages.', 'Add activate, pause, complete, and cancel actions.']}>
+      <Panel icon={<Landmark size={20} />} title="Campaigns">
+        <RecordList
+          isError={campaigns.isError}
+          isLoading={campaigns.isPending}
+          items={campaigns.data}
+          label="campaigns"
+          render={(campaign) => (
+            <>
+              <StatusBadge status={campaign.status} /> {campaign.title} - {campaign.collected_amount}/{campaign.goal_amount} {campaign.currency} - {campaign.visibility}
+            </>
+          )}
+        />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function DonationsPage() {
+  const donations = useQuery({ queryKey: ['donations'], queryFn: getDonations })
+
+  return (
+    <ModulePage description="Record donations, manage allocations, confirm payments, and generate receipts." title="Donations" planned={['Add donation form with allocation builder.', 'Add manual confirmation and receipt actions.']}>
+      <Panel icon={<DollarSign size={20} />} title="Donations">
+        <RecordList
+          isError={donations.isError}
+          isLoading={donations.isPending}
+          items={donations.data}
+          label="donations"
+          render={(donation) => (
+            <>
+              <StatusBadge status={donation.payment_status} /> {donation.donation_number} - {donation.donor?.name ?? 'Anonymous'} - {donation.amount} {donation.currency} - {donation.donation_status}
+            </>
+          )}
+        />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function PaymentsPage() {
+  return (
+    <PlaceholderModulePage
+      icon={<Receipt size={20} />}
+      planned={['Add payment transaction list/detail.', 'Add receipt view and generation flow from donation detail pages.']}
+      title="Payments & Receipts"
+      description="Payment transactions and receipts are API-backed, but dedicated browser screens are queued for the finance UI slice."
+    />
+  )
+}
+
+function WarehousesPage() {
+  const warehouses = useQuery({ queryKey: ['warehouses'], queryFn: getWarehouses })
+
+  return (
+    <ModulePage description="Manage warehouses, branch assignment, status, and managers." title="Warehouses" planned={['Add create/edit/detail pages.', 'Add status and manager controls.']}>
+      <Panel icon={<Warehouse size={20} />} title="Warehouses">
+        <RecordList isError={warehouses.isError} isLoading={warehouses.isPending} items={warehouses.data} label="warehouses" render={(warehouse) => `${warehouse.code} - ${warehouse.name} - ${warehouse.status} - ${warehouse.stock_lots_count ?? 0} lots`} />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function InventoryItemsPage() {
+  const inventoryItems = useQuery({ queryKey: ['inventory-items'], queryFn: getInventoryItems })
+
+  return (
+    <ModulePage description="Manage catalog items, units, categories, minimum stock, and expiry tracking." title="Inventory Items" planned={['Add create/edit/detail pages.', 'Add item stock and movement drill-downs.']}>
+      <Panel icon={<Package size={20} />} title="Inventory Items">
+        <RecordList isError={inventoryItems.isError} isLoading={inventoryItems.isPending} items={inventoryItems.data} label="inventory items" render={(item) => `${item.sku} - ${item.name} - ${item.category} - min ${item.minimum_stock_level} ${item.unit}`} />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function StockSummaryPage() {
+  const stockSummary = useQuery({ queryKey: ['stock-summary'], queryFn: getStockSummary })
+
+  return (
+    <ModulePage description="Review available and reserved quantities by item." title="Stock Summary" planned={['Add filters by warehouse/category.', 'Link rows to item and movement detail pages.']}>
+      <Panel icon={<Boxes size={20} />} title="Stock Summary">
+        <RecordList isError={stockSummary.isError} isLoading={stockSummary.isPending} items={stockSummary.data} label="stock summary rows" render={(row) => `${row.sku} - ${row.available_quantity} ${row.unit} available - ${row.reserved_quantity} reserved - ${row.low_stock ? 'low stock' : 'healthy'}`} />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function StockLotsPage() {
+  const stockLots = useQuery({ queryKey: ['stock-lots'], queryFn: getStockLots })
+
+  return (
+    <ModulePage description="Review stock lots, remaining quantities, reservations, sources, and expiry dates." title="Stock Lots" planned={['Add receive stock form route.', 'Add lot detail view.']}>
+      <Panel icon={<Boxes size={20} />} title="Stock Lots">
+        <RecordList
+          isError={stockLots.isError}
+          isLoading={stockLots.isPending}
+          items={stockLots.data}
+          label="stock lots"
+          render={(lot) =>
+            `${lot.inventory_item?.sku ?? 'Unknown item'} - ${lot.remaining_quantity} ${lot.inventory_item?.unit ?? ''} remaining - ${lot.warehouse?.code ?? 'No warehouse'} - ${lot.source_type} #${lot.source_id ?? '-'} - expires ${lot.expiry_date ?? '-'}`
+          }
+        />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function StockMovementsPage() {
+  const stockMovements = useQuery({ queryKey: ['stock-movements'], queryFn: getStockMovements })
+
+  return (
+    <ModulePage description="Review all stock-in, adjustment, reservation, release, and distribution movements." title="Stock Movements" planned={['Add receive stock and adjust stock forms.', 'Add movement filters.']}>
+      <Panel icon={<ListChecks size={20} />} title="Stock Movements">
+        <RecordList
+          isError={stockMovements.isError}
+          isLoading={stockMovements.isPending}
+          items={stockMovements.data}
+          label="stock movements"
+          render={(movement) => `${movement.movement_type} - ${movement.inventory_item?.sku ?? 'Unknown item'} - ${movement.quantity} ${movement.inventory_item?.unit ?? ''} - ${movement.warehouse?.code ?? 'No warehouse'} - ${formatDate(movement.created_at)}`}
+        />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function LowStockPage() {
+  const lowStock = useQuery({ queryKey: ['stock-low-stock'], queryFn: getLowStock })
+
+  return (
+    <ModulePage description="Review items under configured minimum stock levels." title="Low Stock" planned={['Add links to receive stock and item detail pages.']}>
+      <Panel icon={<ClipboardCheck size={20} />} title="Low Stock">
+        <RecordList isError={lowStock.isError} isLoading={lowStock.isPending} items={lowStock.data} label="low stock rows" render={(row) => `${row.sku} - ${row.available_quantity}/${row.minimum_stock_level} ${row.unit}`} />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function ExpiringStockPage() {
+  const expiringStock = useQuery({ queryKey: ['stock-expiring'], queryFn: getExpiringStock })
+
+  return (
+    <ModulePage description="Review stock lots expiring soon." title="Expiring Stock" planned={['Add expiry window filter.', 'Add links to affected lots and warehouses.']}>
+      <Panel icon={<CalendarClock size={20} />} title="Expiring Stock">
+        <RecordList
+          isError={expiringStock.isError}
+          isLoading={expiringStock.isPending}
+          items={expiringStock.data}
+          label="expiring stock lots"
+          render={(lot) => `${lot.inventory_item?.sku ?? 'Unknown item'} - ${lot.remaining_quantity} ${lot.inventory_item?.unit ?? ''} - ${lot.warehouse?.code ?? 'No warehouse'} - expires ${lot.expiry_date ?? '-'}`}
+        />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function AidBatchesPage() {
+  const aidBatches = useQuery({ queryKey: ['aid-batches'], queryFn: getAidBatches })
+
+  return (
+    <ModulePage description="Plan aid batches, add distributions, check stock, approve, and complete deliveries." title="Aid Batches" planned={['Add create/edit/detail pages.', 'Add distributions, stock-check, submit, approve, cancel, and complete controls.']}>
+      <Panel icon={<Truck size={20} />} title="Aid Batches">
+        <RecordList
+          isError={aidBatches.isError}
+          isLoading={aidBatches.isPending}
+          items={aidBatches.data}
+          label="aid batches"
+          render={(batch) => (
+            <>
+              <StatusBadge status={batch.status} /> {batch.batch_number} - {batch.title} - {batch.distributions_count ?? 0} distributions - {batch.warehouse?.code ?? 'No warehouse'}
+            </>
+          )}
+        />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function AidDistributionsPage() {
+  return (
+    <PlaceholderModulePage
+      icon={<ClipboardCheck size={20} />}
+      planned={['Add distribution list/detail views.', 'Add delivery, failure, reschedule, and proof upload actions.']}
+      title="Aid Distributions"
+      description="Distribution records are currently managed under batches in the API. Dedicated distribution screens are part of Slice 11.6."
+    />
+  )
+}
+
+function ReportsPage() {
+  const dashboardReport = useQuery({ queryKey: ['reports-dashboard'], queryFn: getDashboardReport })
+
+  return (
+    <ModulePage description="Run operational reports and export CSV files." title="Reports & Exports" planned={['Add report-specific filters.', 'Add export creation/list/download controls.']}>
+      <Panel icon={<FileBarChart size={20} />} title="Report Entry Points">
+        <RecordList
+          items={[
+            'Donation report',
+            'Campaign report',
+            'Beneficiary report',
+            'Case file report',
+            'Distribution report',
+            'Inventory report',
+            'Audit log report',
+            'CSV exports',
+          ]}
+          label="report entry points"
+          render={(item) => item}
+        />
+      </Panel>
+      <Panel icon={<ListChecks size={20} />} title="Current Dashboard Snapshot">
+        {dashboardReport.data ? (
+          <KeyValueRows
+            rows={[
+              ['Donations this month', `${dashboardReport.data.metrics.total_donations_this_month} EGP`],
+              ['Active campaigns', String(dashboardReport.data.metrics.active_campaigns)],
+              ['Pending cases', String(dashboardReport.data.metrics.pending_cases)],
+              ['Low stock items', String(dashboardReport.data.metrics.low_stock_items)],
+            ]}
+          />
+        ) : (
+          <LoadingOrEmpty isError={dashboardReport.isError} isLoading={dashboardReport.isPending} label="Loading report snapshot" />
+        )}
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function PublicPortalSettingsPage() {
+  return (
+    <PlaceholderModulePage
+      icon={<Settings size={20} />}
+      planned={['Add settings form for portal visibility, campaign progress, contact info, public reports, and donation intent toggle.', 'Add link to /public preview.']}
+      title="Public Portal Settings"
+      description="Public portal APIs exist, and this route is reserved for the authenticated settings form in Slice 11.7."
+    />
+  )
+}
+
+function NotificationsPage() {
+  const notifications = useQuery({ queryKey: ['notifications'], queryFn: getNotifications })
+  const preferences = useQuery({ queryKey: ['notification-preferences'], queryFn: getNotificationPreferences })
+
+  return (
+    <ModulePage description="Review operational notifications and channel preferences." title="Notifications" planned={['Add full inbox filters.', 'Add preferences update form.']}>
+      <Panel icon={<Bell size={20} />} title="Recent Notifications">
+        <RecordList
+          isError={notifications.isError}
+          isLoading={notifications.isPending}
+          items={notifications.data}
+          label="notifications"
+          render={(notification) => (
+            <>
+              <StatusBadge status={notification.severity} /> {notification.title} - {notification.category} - {notification.read_at ? 'read' : 'unread'}
+            </>
+          )}
+        />
+      </Panel>
+      <Panel icon={<Settings size={20} />} title="Notification Preferences">
+        <RecordList
+          isError={preferences.isError}
+          isLoading={preferences.isPending}
+          items={preferences.data}
+          label="notification preferences"
+          render={(preference) => `${preference.category} - database ${preference.database_enabled ? 'on' : 'off'} - email ${preference.email_enabled ? 'on' : 'off'}`}
+        />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function SystemPage() {
+  const queueHealth = useQuery({ queryKey: ['system-queue-health'], queryFn: getQueueHealth })
+  const scheduledJobs = useQuery({ queryKey: ['system-scheduled-jobs'], queryFn: getScheduledJobs })
+
+  return (
+    <ModulePage description="Inspect queue and scheduler visibility for operational automation." title="System" planned={['Add richer worker status and failed-job operations after backend support is expanded.']}>
+      <Panel icon={<Settings size={20} />} title="Queue Health">
+        {queueHealth.data ? (
+          <KeyValueRows
+            rows={[
+              ['Connection', queueHealth.data.connection],
+              ['Pending jobs', String(queueHealth.data.pending_jobs)],
+              ['Failed jobs', String(queueHealth.data.failed_jobs)],
+            ]}
+          />
+        ) : (
+          <LoadingOrEmpty isError={queueHealth.isError} isLoading={queueHealth.isPending} label="Loading queue health" />
+        )}
+      </Panel>
+      <Panel icon={<CalendarClock size={20} />} title="Scheduled Jobs">
+        <RecordList isError={scheduledJobs.isError} isLoading={scheduledJobs.isPending} items={scheduledJobs.data} label="scheduled jobs" render={(job) => `${job.name} - ${job.command} - ${job.frequency}`} />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function PlaceholderModulePage({ description, icon, planned, title }: { description: string; icon: ReactNode; planned: string[]; title: string }) {
+  return (
+    <ModulePage description={description} planned={planned} title={title}>
+      <Panel icon={icon} title={`${title} Controls`}>
+        <EmptyState title="Controls queued for Phase 11" />
+      </Panel>
+    </ModulePage>
+  )
+}
+
+function ModulePage({ children, description, planned, title }: { children: ReactNode; description: string; planned?: string[]; title: string }) {
+  return (
+    <div className="mx-auto max-w-7xl">
+      <header className="mb-5">
+        <p className="text-sm font-medium uppercase tracking-wide text-[#4b635b]">Admin control system</p>
+        <h2 className="mt-1 text-2xl font-semibold text-[#10201a]">{title}</h2>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-[#52645e]">{description}</p>
+      </header>
+
+      {planned && planned.length > 0 ? <PhaseNotice items={planned} /> : null}
+
+      <div className="grid gap-4 lg:grid-cols-2">{children}</div>
+    </div>
+  )
+}
+
+function PhaseNotice({ items }: { items: string[] }) {
+  return (
+    <div className="mb-5 rounded-md border border-[#d8e5df] bg-[#f0f7f4] p-4 text-sm text-[#29483d]">
+      <p className="font-semibold text-[#10201a]">Next controls for this module</p>
+      <ul className="mt-2 list-inside list-disc space-y-1">
+        {items.map((item) => (
+          <li key={item}>{item}</li>
+        ))}
+      </ul>
+    </div>
   )
 }
 
@@ -366,7 +879,7 @@ function Panel({ icon, title, children }: { icon: ReactNode; title: string; chil
     <section className="rounded-md border border-[#d9e1de] bg-white p-5">
       <div className="mb-4 flex items-center gap-2 text-[#10201a]">
         <span className="text-[#236b55]">{icon}</span>
-        <h2 className="text-lg font-semibold">{title}</h2>
+        <h3 className="text-lg font-semibold">{title}</h3>
       </div>
       {children}
     </section>
@@ -379,11 +892,63 @@ function KeyValueRows({ rows }: { rows: [string, string | null][] }) {
       {rows.map(([label, value]) => (
         <div className="flex justify-between gap-4 border-b border-[#edf1ef] pb-2" key={label}>
           <dt className="text-[#52645e]">{label}</dt>
-          <dd className="font-medium text-[#10201a]">{value ?? '-'}</dd>
+          <dd className="text-right font-medium text-[#10201a]">{value ?? '-'}</dd>
         </div>
       ))}
     </dl>
   )
+}
+
+function RecordList<T>({
+  isError,
+  isLoading,
+  items,
+  label,
+  render,
+}: {
+  isError?: boolean
+  isLoading?: boolean
+  items: T[] | undefined
+  label: string
+  render: (item: T) => ReactNode
+}) {
+  if (isLoading) {
+    return <LoadingState label={`Loading ${label}`} />
+  }
+
+  if (isError) {
+    return <UnauthorizedState title={`Cannot load ${label}`} />
+  }
+
+  if (!items || items.length === 0) {
+    return <EmptyState title={`No ${label} found`} />
+  }
+
+  return (
+    <ul className="divide-y divide-[#edf1ef] text-sm">
+      {items.map((item, index) => (
+        <li className="py-2 leading-6 text-[#10201a]" key={index}>
+          {render(item)}
+        </li>
+      ))}
+    </ul>
+  )
+}
+
+function LoadingOrEmpty({ isError, isLoading, label }: { isError?: boolean; isLoading: boolean; label: string }) {
+  if (isLoading) {
+    return <LoadingState label={label} />
+  }
+
+  if (isError) {
+    return <UnauthorizedState title="Unable to load data" />
+  }
+
+  return <EmptyState title="No data available" />
+}
+
+function StatusBadge({ status }: { status: string }) {
+  return <span className={`mr-2 rounded-md border px-2 py-0.5 text-xs font-medium ${statusClass(status)}`}>{status}</span>
 }
 
 function NotificationDropdown({
@@ -422,7 +987,7 @@ function NotificationItems({ notifications, onMarkRead }: { notifications: Opera
         <li className="py-3" key={notification.id}>
           <div className="mb-1 flex items-start justify-between gap-3">
             <div>
-              <span className={`rounded-md border px-2 py-0.5 text-xs font-medium ${severityClass(notification.severity)}`}>{notification.severity}</span>
+              <span className={`rounded-md border px-2 py-0.5 text-xs font-medium ${statusClass(notification.severity)}`}>{notification.severity}</span>
               <h3 className="mt-2 font-semibold text-[#10201a]">{notification.title}</h3>
             </div>
             {!notification.read_at ? (
@@ -432,46 +997,45 @@ function NotificationItems({ notifications, onMarkRead }: { notifications: Opera
             ) : null}
           </div>
           {notification.body ? <p className="leading-5 text-[#52645e]">{notification.body}</p> : null}
-          <p className="mt-2 text-xs text-[#7b8b85]">{new Date(notification.created_at).toLocaleString()}</p>
+          <p className="mt-2 text-xs text-[#7b8b85]">{formatDate(notification.created_at)}</p>
         </li>
       ))}
     </ul>
   )
 }
 
-function severityClass(severity: string) {
-  const classes: Record<string, string> = {
-    info: 'border-[#bbd5e7] bg-[#eef7fc] text-[#245a7a]',
-    success: 'border-[#b7d8c8] bg-[#edf8f1] text-[#236b55]',
-    warning: 'border-[#e8d6ad] bg-[#fff8e8] text-[#6f541e]',
-    critical: 'border-[#e8b8b0] bg-[#fff1ef] text-[#a44a3f]',
+function canSeeNavItem(user: CurrentUser, item: NavItem) {
+  if (!item.permissions || item.permissions.length === 0) {
+    return true
   }
 
-  return classes[severity] ?? 'border-[#d8e0dc] bg-white text-[#52645e]'
+  if (!user.permissions || user.permissions.length === 0) {
+    return true
+  }
+
+  return item.permissions.some((permission) => user.permissions?.includes(permission))
 }
 
-function SimpleList<T>({ items, label, render }: { items: T[] | undefined; label: string; render: (item: T) => string }) {
-  if (!items) {
-    return <LoadingOrEmpty isLoading label={`Loading ${label}`} />
+function statusClass(status: string) {
+  const normalized = status.toLowerCase()
+
+  if (['approved', 'active', 'paid', 'confirmed', 'completed', 'delivered', 'success'].includes(normalized)) {
+    return 'border-[#b7d8c8] bg-[#edf8f1] text-[#236b55]'
   }
 
-  if (items.length === 0) {
-    return <EmptyState title={`No ${label} found`} />
+  if (['pending', 'pending_review', 'under_review', 'pending_approval', 'draft', 'warning'].includes(normalized)) {
+    return 'border-[#e8d6ad] bg-[#fff8e8] text-[#6f541e]'
   }
 
-  return (
-    <ul className="divide-y divide-[#edf1ef] text-sm">
-      {items.map((item, index) => (
-        <li className="py-2 text-[#10201a]" key={index}>
-          {render(item)}
-        </li>
-      ))}
-    </ul>
-  )
+  if (['rejected', 'cancelled', 'failed', 'suspended', 'critical'].includes(normalized)) {
+    return 'border-[#e8b8b0] bg-[#fff1ef] text-[#a44a3f]'
+  }
+
+  return 'border-[#bbd5e7] bg-[#eef7fc] text-[#245a7a]'
 }
 
-function LoadingOrEmpty({ isLoading, label }: { isLoading: boolean; label: string }) {
-  return isLoading ? <LoadingState label={label} /> : <EmptyState title="No data available" />
+function formatDate(value: string) {
+  return new Date(value).toLocaleString()
 }
 
 const router = createBrowserRouter([
@@ -485,7 +1049,36 @@ const router = createBrowserRouter([
   },
   {
     path: '/',
-    element: <AdminPage />,
+    element: <AdminRouteGate />,
+    children: [
+      { index: true, element: <Navigate replace to="/dashboard" /> },
+      { path: 'dashboard', element: <DashboardPage /> },
+      { path: 'organization', element: <OrganizationPage /> },
+      { path: 'branches', element: <BranchesPage /> },
+      { path: 'users', element: <UsersPage /> },
+      { path: 'roles', element: <RolesPage /> },
+      { path: 'audit-logs', element: <AuditLogsPage /> },
+      { path: 'beneficiaries', element: <BeneficiariesPage /> },
+      { path: 'case-files', element: <CaseFilesPage /> },
+      { path: 'donors', element: <DonorsPage /> },
+      { path: 'campaigns', element: <CampaignsPage /> },
+      { path: 'donations', element: <DonationsPage /> },
+      { path: 'finance/payments', element: <PaymentsPage /> },
+      { path: 'warehouses', element: <WarehousesPage /> },
+      { path: 'inventory-items', element: <InventoryItemsPage /> },
+      { path: 'stock/summary', element: <StockSummaryPage /> },
+      { path: 'stock/lots', element: <StockLotsPage /> },
+      { path: 'stock/movements', element: <StockMovementsPage /> },
+      { path: 'stock/low-stock', element: <LowStockPage /> },
+      { path: 'stock/expiring', element: <ExpiringStockPage /> },
+      { path: 'aid-batches', element: <AidBatchesPage /> },
+      { path: 'aid-distributions', element: <AidDistributionsPage /> },
+      { path: 'reports', element: <ReportsPage /> },
+      { path: 'settings/public-portal', element: <PublicPortalSettingsPage /> },
+      { path: 'notifications', element: <NotificationsPage /> },
+      { path: 'system', element: <SystemPage /> },
+      { path: '*', element: <Navigate replace to="/dashboard" /> },
+    ],
   },
 ])
 

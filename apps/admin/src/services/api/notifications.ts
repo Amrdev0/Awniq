@@ -27,6 +27,18 @@ export type NotificationPreference = {
   email_enabled: boolean
 }
 
+export type ScheduledJob = {
+  name: string
+  command: string
+  frequency: string
+}
+
+export type QueueHealth = {
+  connection: string
+  pending_jobs: number
+  failed_jobs: number
+}
+
 export async function getNotifications() {
   const response = await apiRequest<CollectionResponse<OperationalNotification>>('/notifications?per_page=10')
 
@@ -57,6 +69,18 @@ export async function markAllNotificationsRead() {
 
 export async function getNotificationPreferences() {
   const response = await apiRequest<CollectionResponse<NotificationPreference>>('/notification-preferences')
+
+  return response.data
+}
+
+export async function getScheduledJobs() {
+  const response = await apiRequest<SingleResponse<{ jobs: ScheduledJob[] }>>('/system/scheduled-jobs')
+
+  return response.data.jobs
+}
+
+export async function getQueueHealth() {
+  const response = await apiRequest<SingleResponse<QueueHealth>>('/system/queue-health')
 
   return response.data
 }

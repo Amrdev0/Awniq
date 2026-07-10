@@ -39,7 +39,7 @@ Implemented so far:
 
 Important current gap:
 
-- The admin frontend is still mostly a single read-only operations overview. Awniq needs Phase 11 before a product MVP release: sidebar navigation, routed module pages, forms, detail pages, workflow actions, and permission-aware controls for every core module.
+- Phase 11 has started with an admin shell, sidebar navigation, `/dashboard`, and routed read-only module pages. Awniq still needs Phase 11 follow-up slices before a product MVP release: create/edit forms, detail pages, workflow actions, and deeper permission-aware controls for every core module.
 
 ## Tech Stack
 

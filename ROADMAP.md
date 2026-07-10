@@ -79,9 +79,9 @@ Required scope:
 
 Checklist:
 
-- [ ] Build admin shell and sidebar navigation.
-- [ ] Move dashboard to a real `/dashboard` route.
-- [ ] Add route map for all operational modules.
+- [x] Build admin shell and sidebar navigation.
+- [x] Move dashboard to a real `/dashboard` route.
+- [x] Add route map for all operational modules.
 - [ ] Expand frontend API clients with write operations.
 - [ ] Implement organization, branches, users, roles, permissions, and audit log screens.
 - [ ] Implement beneficiary, family member, case file, note, and document screens.
