@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { ComponentType, FormEvent, ReactNode } from 'react'
+import type { ComponentType, FormEvent, InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from 'react'
 import { createBrowserRouter, Navigate, NavLink, Outlet, RouterProvider, useLocation } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -34,7 +34,31 @@ import { getAidBatches } from '../services/api/aid'
 import { getMe, login, logout, type CurrentUser } from '../services/api/auth'
 import { getBeneficiaries, getCaseFiles } from '../services/api/cases'
 import { getCampaigns, getDonations, getDonors } from '../services/api/finance'
-import { getAuditLogs, getBranches, getOrganization, getRoles, getUsers } from '../services/api/identity'
+import {
+  createBranch,
+  createRole,
+  createUser,
+  deleteBranch,
+  deleteRole,
+  disableUser,
+  enableUser,
+  getAuditLogs,
+  getBranches,
+  getOrganization,
+  getPermissions,
+  getRoles,
+  getUsers,
+  syncUserRoles,
+  updateBranch,
+  updateOrganization,
+  updateRole,
+  updateUser,
+  type AuditLog,
+  type Branch,
+  type OrganizationInput,
+  type Role,
+  type User,
+} from '../services/api/identity'
 import {
   getExpiringStock,
   getInventoryItems,
@@ -407,10 +431,40 @@ function DashboardPage() {
 }
 
 function OrganizationPage() {
+  const queryClient = useQueryClient()
   const organization = useQuery({ queryKey: ['organization'], queryFn: getOrganization })
+  const updateMutation = useMutation({
+    mutationFn: updateOrganization,
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['organization'] })
+    },
+  })
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const input: OrganizationInput = {
+      name: formString(form, 'name'),
+      legal_name: formNullable(form, 'legal_name'),
+      slug: formString(form, 'slug'),
+      email: formNullable(form, 'email'),
+      phone: formNullable(form, 'phone'),
+      website: formNullable(form, 'website'),
+      logo: formNullable(form, 'logo'),
+      country: formNullable(form, 'country'),
+      city: formNullable(form, 'city'),
+      address: formNullable(form, 'address'),
+      default_currency: formString(form, 'default_currency').toUpperCase(),
+      timezone: formString(form, 'timezone'),
+      language: formString(form, 'language') as OrganizationInput['language'],
+      status: formString(form, 'status') as OrganizationInput['status'],
+    }
+
+    updateMutation.mutate(input)
+  }
 
   return (
-    <ModulePage description="Manage the organization profile and operating defaults." title="Organization" planned={['Add edit form for profile, currency, timezone, contact, and language fields.']}>
+    <ModulePage description="Manage the organization profile and operating defaults." title="Organization">
       <Panel icon={<Building2 size={20} />} title="Organization Profile">
         {organization.data ? (
           <KeyValueRows
@@ -427,53 +481,419 @@ function OrganizationPage() {
           <LoadingOrEmpty isError={organization.isError} isLoading={organization.isPending} label="Loading organization" />
         )}
       </Panel>
+      <Panel icon={<Settings size={20} />} title="Edit Organization">
+        {organization.data ? (
+          <form className="space-y-4" key={organization.data.id} onSubmit={handleSubmit}>
+            <FormGrid>
+              <TextField defaultValue={organization.data.name} label="Name" name="name" required />
+              <TextField defaultValue={organization.data.legal_name ?? ''} label="Legal name" name="legal_name" />
+              <TextField defaultValue={organization.data.slug} label="Slug" name="slug" required />
+              <TextField defaultValue={organization.data.email ?? ''} label="Email" name="email" type="email" />
+              <TextField defaultValue={organization.data.phone ?? ''} label="Phone" name="phone" />
+              <TextField defaultValue={organization.data.website ?? ''} label="Website" name="website" type="url" />
+              <TextField defaultValue={organization.data.country ?? ''} label="Country" name="country" />
+              <TextField defaultValue={organization.data.city ?? ''} label="City" name="city" />
+              <TextField defaultValue={organization.data.default_currency} label="Currency" maxLength={3} name="default_currency" required />
+              <TextField defaultValue={organization.data.timezone} label="Timezone" name="timezone" required />
+              <SelectField defaultValue={organization.data.language} label="Language" name="language" options={['en', 'ar']} />
+              <SelectField defaultValue={organization.data.status} label="Status" name="status" options={['active', 'inactive']} />
+            </FormGrid>
+            <TextAreaField defaultValue={organization.data.address ?? ''} label="Address" name="address" />
+            <TextField defaultValue={organization.data.logo ?? ''} label="Logo URL/path" name="logo" />
+            <FormFooter isPending={updateMutation.isPending} submitLabel="Save organization" />
+            <MutationState isError={updateMutation.isError} isSuccess={updateMutation.isSuccess} />
+          </form>
+        ) : (
+          <LoadingOrEmpty isError={organization.isError} isLoading={organization.isPending} label="Loading organization form" />
+        )}
+      </Panel>
     </ModulePage>
   )
 }
 
 function BranchesPage() {
+  const queryClient = useQueryClient()
+  const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
   const branches = useQuery({ queryKey: ['branches'], queryFn: getBranches })
+  const users = useQuery({ queryKey: ['users'], queryFn: getUsers })
+  const createMutation = useMutation({
+    mutationFn: createBranch,
+    onSuccess: () => {
+      setEditingBranch(null)
+      void queryClient.invalidateQueries({ queryKey: ['branches'] })
+    },
+  })
+  const updateMutation = useMutation({
+    mutationFn: ({ id, input }: { id: number; input: Parameters<typeof updateBranch>[1] }) => updateBranch(id, input),
+    onSuccess: () => {
+      setEditingBranch(null)
+      void queryClient.invalidateQueries({ queryKey: ['branches'] })
+    },
+  })
+  const deleteMutation = useMutation({
+    mutationFn: deleteBranch,
+    onSuccess: () => {
+      setEditingBranch(null)
+      void queryClient.invalidateQueries({ queryKey: ['branches'] })
+    },
+  })
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const input = {
+      name: formString(form, 'name'),
+      code: formString(form, 'code'),
+      phone: formNullable(form, 'phone'),
+      email: formNullable(form, 'email'),
+      country: formNullable(form, 'country'),
+      city: formNullable(form, 'city'),
+      address: formNullable(form, 'address'),
+      manager_user_id: formNullableNumber(form, 'manager_user_id'),
+      status: formString(form, 'status') as 'active' | 'inactive',
+    }
+
+    if (editingBranch) {
+      updateMutation.mutate({ id: editingBranch.id, input })
+    } else {
+      createMutation.mutate(input)
+    }
+  }
 
   return (
-    <ModulePage description="Manage operational branches and branch contact details." title="Branches" planned={['Add create/edit/detail pages.', 'Add delete/deactivate action where allowed.']}>
+    <ModulePage description="Manage operational branches and branch contact details." title="Branches">
       <Panel icon={<GitBranch size={20} />} title="Branches">
-        <RecordList isError={branches.isError} isLoading={branches.isPending} items={branches.data} label="branches" render={(branch) => `${branch.code} - ${branch.name} - ${branch.city ?? 'No city'} - ${branch.status}`} />
+        <RecordList
+          isError={branches.isError}
+          isLoading={branches.isPending}
+          items={branches.data}
+          label="branches"
+          render={(branch) => (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>
+                <StatusBadge status={branch.status} /> {branch.code} - {branch.name} - {branch.city ?? 'No city'} - manager {branch.manager?.name ?? 'none'}
+              </span>
+              <span className="flex gap-2">
+                <SmallButton onClick={() => setEditingBranch(branch)}>Edit</SmallButton>
+                <SmallButton danger onClick={() => window.confirm(`Delete ${branch.name}?`) && deleteMutation.mutate(branch.id)}>
+                  Delete
+                </SmallButton>
+              </span>
+            </div>
+          )}
+        />
+      </Panel>
+      <Panel icon={<FileText size={20} />} title="Branch Detail">
+        {editingBranch ? (
+          <KeyValueRows
+            rows={[
+              ['Name', editingBranch.name],
+              ['Code', editingBranch.code],
+              ['Status', editingBranch.status],
+              ['Manager', editingBranch.manager?.email ?? 'None'],
+              ['Email', editingBranch.email],
+              ['Phone', editingBranch.phone],
+              ['Location', [editingBranch.city, editingBranch.country].filter(Boolean).join(', ') || null],
+              ['Address', editingBranch.address],
+            ]}
+          />
+        ) : (
+          <EmptyState title="Select a branch" />
+        )}
+      </Panel>
+      <Panel icon={<Settings size={20} />} title={editingBranch ? `Edit ${editingBranch.name}` : 'Create Branch'}>
+        <form className="space-y-4" key={editingBranch?.id ?? 'new'} onSubmit={handleSubmit}>
+          <FormGrid>
+            <TextField defaultValue={editingBranch?.name ?? ''} label="Name" name="name" required />
+            <TextField defaultValue={editingBranch?.code ?? ''} label="Code" name="code" required />
+            <TextField defaultValue={editingBranch?.phone ?? ''} label="Phone" name="phone" />
+            <TextField defaultValue={editingBranch?.email ?? ''} label="Email" name="email" type="email" />
+            <TextField defaultValue={editingBranch?.country ?? ''} label="Country" name="country" />
+            <TextField defaultValue={editingBranch?.city ?? ''} label="City" name="city" />
+            <SelectField
+              defaultValue={editingBranch?.manager_user_id ? String(editingBranch.manager_user_id) : ''}
+              label="Manager"
+              name="manager_user_id"
+              options={['', ...(users.data ?? []).map((user) => String(user.id))]}
+              optionLabels={{ '': 'No manager', ...(users.data ?? []).reduce<Record<string, string>>((labels, user) => ({ ...labels, [String(user.id)]: `${user.name} (${user.email})` }), {}) }}
+            />
+            <SelectField defaultValue={editingBranch?.status ?? 'active'} label="Status" name="status" options={['active', 'inactive']} />
+          </FormGrid>
+          <TextAreaField defaultValue={editingBranch?.address ?? ''} label="Address" name="address" />
+          <FormFooter isPending={createMutation.isPending || updateMutation.isPending} onCancel={editingBranch ? () => setEditingBranch(null) : undefined} submitLabel={editingBranch ? 'Save branch' : 'Create branch'} />
+          <MutationState isError={createMutation.isError || updateMutation.isError || deleteMutation.isError} isSuccess={createMutation.isSuccess || updateMutation.isSuccess || deleteMutation.isSuccess} />
+        </form>
       </Panel>
     </ModulePage>
   )
 }
 
 function UsersPage() {
+  const queryClient = useQueryClient()
+  const [editingUser, setEditingUser] = useState<User | null>(null)
   const users = useQuery({ queryKey: ['users'], queryFn: getUsers })
+  const branches = useQuery({ queryKey: ['branches'], queryFn: getBranches })
+  const roles = useQuery({ queryKey: ['roles'], queryFn: getRoles })
+  const createMutation = useMutation({
+    mutationFn: createUser,
+    onSuccess: () => {
+      setEditingUser(null)
+      void queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+  })
+  const updateMutation = useMutation({
+    mutationFn: ({ id, input }: { id: number; input: Parameters<typeof updateUser>[1] }) => updateUser(id, input),
+    onSuccess: () => {
+      setEditingUser(null)
+      void queryClient.invalidateQueries({ queryKey: ['users'] })
+    },
+  })
+  const enableMutation = useMutation({
+    mutationFn: enableUser,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['users'] }),
+  })
+  const disableMutation = useMutation({
+    mutationFn: disableUser,
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['users'] }),
+  })
+  const syncRolesMutation = useMutation({
+    mutationFn: ({ id, roles }: { id: number; roles: string[] }) => syncUserRoles(id, roles),
+    onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['users'] }),
+  })
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const password = formString(form, 'password')
+    const input = {
+      name: formString(form, 'name'),
+      email: formString(form, 'email'),
+      phone: formNullable(form, 'phone'),
+      branch_id: formNullableNumber(form, 'branch_id'),
+      status: formString(form, 'status') as 'active' | 'disabled' | 'pending',
+      roles: form.getAll('roles').map(String),
+      ...(password ? { password } : {}),
+    }
+
+    if (editingUser) {
+      updateMutation.mutate({ id: editingUser.id, input })
+    } else {
+      createMutation.mutate(input)
+    }
+  }
 
   return (
-    <ModulePage description="Manage staff accounts, status, branches, and roles." title="Users" planned={['Add create/edit forms.', 'Add enable/disable and role sync controls.']}>
+    <ModulePage description="Manage staff accounts, status, branches, and roles." title="Users">
       <Panel icon={<Users size={20} />} title="Users">
-        <RecordList isError={users.isError} isLoading={users.isPending} items={users.data} label="users" render={(user) => `${user.name} - ${user.email} - ${user.status} - ${(user.roles ?? []).join(', ') || 'No role'}`} />
+        <RecordList
+          isError={users.isError}
+          isLoading={users.isPending}
+          items={users.data}
+          label="users"
+          render={(user) => (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>
+                <StatusBadge status={user.status} /> {user.name} - {user.email} - {user.branch?.code ?? 'No branch'} - {(user.roles ?? []).join(', ') || 'No role'}
+              </span>
+              <span className="flex flex-wrap gap-2">
+                <SmallButton onClick={() => setEditingUser(user)}>Edit</SmallButton>
+                {user.status === 'disabled' ? <SmallButton onClick={() => enableMutation.mutate(user.id)}>Enable</SmallButton> : <SmallButton danger onClick={() => window.confirm(`Disable ${user.name}?`) && disableMutation.mutate(user.id)}>Disable</SmallButton>}
+              </span>
+            </div>
+          )}
+        />
+      </Panel>
+      <Panel icon={<FileText size={20} />} title="User Detail">
+        {editingUser ? (
+          <KeyValueRows
+            rows={[
+              ['Name', editingUser.name],
+              ['Email', editingUser.email],
+              ['Status', editingUser.status],
+              ['Phone', editingUser.phone],
+              ['Branch', editingUser.branch ? `${editingUser.branch.code} - ${editingUser.branch.name}` : 'None'],
+              ['Roles', (editingUser.roles ?? []).join(', ') || 'None'],
+            ]}
+          />
+        ) : (
+          <EmptyState title="Select a user" />
+        )}
+      </Panel>
+      <Panel icon={<Settings size={20} />} title={editingUser ? `Edit ${editingUser.name}` : 'Create User'}>
+        <form className="space-y-4" key={editingUser?.id ?? 'new'} onSubmit={handleSubmit}>
+          <FormGrid>
+            <TextField defaultValue={editingUser?.name ?? ''} label="Name" name="name" required />
+            <TextField defaultValue={editingUser?.email ?? ''} label="Email" name="email" required type="email" />
+            <TextField defaultValue={editingUser?.phone ?? ''} label="Phone" name="phone" />
+            <TextField label={editingUser ? 'New password' : 'Password'} minLength={8} name="password" required={!editingUser} type="password" />
+            <SelectField
+              defaultValue={editingUser?.branch_id ? String(editingUser.branch_id) : ''}
+              label="Branch"
+              name="branch_id"
+              options={['', ...(branches.data ?? []).map((branch) => String(branch.id))]}
+              optionLabels={{ '': 'No branch', ...(branches.data ?? []).reduce<Record<string, string>>((labels, branch) => ({ ...labels, [String(branch.id)]: `${branch.code} - ${branch.name}` }), {}) }}
+            />
+            <SelectField defaultValue={editingUser?.status ?? 'active'} label="Status" name="status" options={['active', 'disabled', 'pending']} />
+          </FormGrid>
+          <CheckboxGroup defaultValues={editingUser?.roles ?? []} label="Roles" name="roles" options={(roles.data ?? []).map((role) => role.name)} />
+          <FormFooter isPending={createMutation.isPending || updateMutation.isPending || syncRolesMutation.isPending} onCancel={editingUser ? () => setEditingUser(null) : undefined} submitLabel={editingUser ? 'Save user' : 'Create user'} />
+          {editingUser ? (
+            <button
+              className="rounded-md border border-[#c8d4cf] bg-white px-3 py-2 text-sm"
+              onClick={(event) => {
+                const formElement = event.currentTarget.form
+
+                if (formElement) {
+                  syncRolesMutation.mutate({ id: editingUser.id, roles: new FormData(formElement).getAll('roles').map(String) })
+                }
+              }}
+              type="button"
+            >
+              Save roles only
+            </button>
+          ) : null}
+          <MutationState isError={createMutation.isError || updateMutation.isError || enableMutation.isError || disableMutation.isError || syncRolesMutation.isError} isSuccess={createMutation.isSuccess || updateMutation.isSuccess || enableMutation.isSuccess || disableMutation.isSuccess || syncRolesMutation.isSuccess} />
+        </form>
       </Panel>
     </ModulePage>
   )
 }
 
 function RolesPage() {
+  const queryClient = useQueryClient()
+  const [editingRole, setEditingRole] = useState<Role | null>(null)
   const roles = useQuery({ queryKey: ['roles'], queryFn: getRoles })
+  const permissions = useQuery({ queryKey: ['permissions'], queryFn: getPermissions })
+  const createMutation = useMutation({
+    mutationFn: createRole,
+    onSuccess: () => {
+      setEditingRole(null)
+      void queryClient.invalidateQueries({ queryKey: ['roles'] })
+    },
+  })
+  const updateMutation = useMutation({
+    mutationFn: ({ id, input }: { id: number; input: Parameters<typeof updateRole>[1] }) => updateRole(id, input),
+    onSuccess: () => {
+      setEditingRole(null)
+      void queryClient.invalidateQueries({ queryKey: ['roles'] })
+    },
+  })
+  const deleteMutation = useMutation({
+    mutationFn: deleteRole,
+    onSuccess: () => {
+      setEditingRole(null)
+      void queryClient.invalidateQueries({ queryKey: ['roles'] })
+    },
+  })
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    const input = {
+      name: formString(form, 'name'),
+      permissions: form.getAll('permissions').map(String),
+    }
+
+    if (editingRole) {
+      updateMutation.mutate({ id: editingRole.id, input })
+    } else {
+      createMutation.mutate(input)
+    }
+  }
 
   return (
-    <ModulePage description="Review roles and permission groups before role editing is enabled." title="Roles & Permissions" planned={['Add permission grouping.', 'Add custom role create/edit where backend allows it.']}>
+    <ModulePage description="Review and manage roles and permission groups." title="Roles & Permissions">
       <Panel icon={<ShieldCheck size={20} />} title="Roles">
-        <RecordList isError={roles.isError} isLoading={roles.isPending} items={roles.data} label="roles" render={(role) => `${role.name} - ${role.is_protected ? 'protected' : 'custom'} - ${role.permissions?.length ?? 0} permissions`} />
+        <RecordList
+          isError={roles.isError}
+          isLoading={roles.isPending}
+          items={roles.data}
+          label="roles"
+          render={(role) => (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>
+                {role.name} - {role.is_protected ? 'protected' : 'custom'} - {role.permissions?.length ?? 0} permissions
+              </span>
+              <span className="flex gap-2">
+                <SmallButton onClick={() => setEditingRole(role)}>Edit</SmallButton>
+                {!role.is_protected ? (
+                  <SmallButton danger onClick={() => window.confirm(`Delete ${role.name}?`) && deleteMutation.mutate(role.id)}>
+                    Delete
+                  </SmallButton>
+                ) : null}
+              </span>
+            </div>
+          )}
+        />
+      </Panel>
+      <Panel icon={<FileText size={20} />} title="Role Detail">
+        {editingRole ? (
+          <div className="space-y-4">
+            <KeyValueRows
+              rows={[
+                ['Name', editingRole.name],
+                ['Type', editingRole.is_protected ? 'Protected' : 'Custom'],
+                ['Permissions', String(editingRole.permissions?.length ?? 0)],
+              ]}
+            />
+            <RecordList items={editingRole.permissions ?? []} label="role permissions" render={(permission) => permission} />
+          </div>
+        ) : (
+          <EmptyState title="Select a role" />
+        )}
+      </Panel>
+      <Panel icon={<Settings size={20} />} title={editingRole ? `Edit ${editingRole.name}` : 'Create Role'}>
+        <form className="space-y-4" key={editingRole?.id ?? 'new'} onSubmit={handleSubmit}>
+          <TextField defaultValue={editingRole?.name ?? ''} label="Role name" name="name" readOnly={editingRole?.is_protected} required />
+          <CheckboxGroup defaultValues={editingRole?.permissions ?? []} isLoading={permissions.isPending} label="Permissions" name="permissions" options={(permissions.data ?? []).map((permission) => permission.name)} />
+          <FormFooter isPending={createMutation.isPending || updateMutation.isPending} onCancel={editingRole ? () => setEditingRole(null) : undefined} submitLabel={editingRole ? 'Save role' : 'Create role'} />
+          <MutationState isError={createMutation.isError || updateMutation.isError || deleteMutation.isError} isSuccess={createMutation.isSuccess || updateMutation.isSuccess || deleteMutation.isSuccess} />
+        </form>
       </Panel>
     </ModulePage>
   )
 }
 
 function AuditLogsPage() {
+  const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
   const auditLogs = useQuery({ queryKey: ['audit-logs'], queryFn: getAuditLogs })
 
   return (
-    <ModulePage description="Inspect audited state changes and sensitive operations." title="Audit Logs" planned={['Add filters by date/action/user/entity.', 'Add detail view with old and new values.']}>
+    <ModulePage description="Inspect audited state changes and sensitive operations." title="Audit Logs" planned={['Add filters by date/action/user/entity.']}>
       <Panel icon={<ClipboardList size={20} />} title="Recent Audit Logs">
-        <RecordList isError={auditLogs.isError} isLoading={auditLogs.isPending} items={auditLogs.data} label="audit logs" render={(log) => `${log.action} - ${log.entity_type} #${log.entity_id ?? '-'} - ${formatDate(log.created_at)}`} />
+        <RecordList
+          isError={auditLogs.isError}
+          isLoading={auditLogs.isPending}
+          items={auditLogs.data}
+          label="audit logs"
+          render={(log) => (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>
+                {log.action} - {log.entity_type} #{log.entity_id ?? '-'} - {log.user?.email ?? 'system'} - {formatDate(log.created_at)}
+              </span>
+              <SmallButton onClick={() => setSelectedLog(log)}>Details</SmallButton>
+            </div>
+          )}
+        />
+      </Panel>
+      <Panel icon={<FileText size={20} />} title="Audit Detail">
+        {selectedLog ? (
+          <div className="space-y-4 text-sm">
+            <KeyValueRows
+              rows={[
+                ['Action', selectedLog.action],
+                ['Entity', `${selectedLog.entity_type} #${selectedLog.entity_id ?? '-'}`],
+                ['User', selectedLog.user?.email ?? 'system'],
+                ['IP address', selectedLog.ip_address],
+                ['Created', formatDate(selectedLog.created_at)],
+              ]}
+            />
+            <JsonBlock label="Old values" value={selectedLog.old_values} />
+            <JsonBlock label="New values" value={selectedLog.new_values} />
+          </div>
+        ) : (
+          <EmptyState title="Select an audit log" />
+        )}
       </Panel>
     </ModulePage>
   )
@@ -947,8 +1367,190 @@ function LoadingOrEmpty({ isError, isLoading, label }: { isError?: boolean; isLo
   return <EmptyState title="No data available" />
 }
 
+function FormGrid({ children }: { children: ReactNode }) {
+  return <div className="grid gap-4 md:grid-cols-2">{children}</div>
+}
+
+function TextField({
+  label,
+  name,
+  ...props
+}: {
+  label: string
+  name: string
+} & Omit<InputHTMLAttributes<HTMLInputElement>, 'className' | 'name'>) {
+  return (
+    <label className="block text-sm">
+      <span className="mb-1 block font-medium text-[#29483d]">{label}</span>
+      <input
+        className="w-full rounded-md border border-[#c8d4cf] bg-white px-3 py-2 text-sm text-[#10201a] outline-none transition focus:border-[#236b55] focus:ring-2 focus:ring-[#236b55]/15 disabled:bg-[#f3f6f4]"
+        name={name}
+        {...props}
+      />
+    </label>
+  )
+}
+
+function SelectField({
+  defaultValue,
+  label,
+  name,
+  optionLabels,
+  options,
+}: {
+  defaultValue?: string
+  label: string
+  name: string
+  optionLabels?: Record<string, string>
+  options: string[]
+}) {
+  return (
+    <label className="block text-sm">
+      <span className="mb-1 block font-medium text-[#29483d]">{label}</span>
+      <select
+        className="w-full rounded-md border border-[#c8d4cf] bg-white px-3 py-2 text-sm text-[#10201a] outline-none transition focus:border-[#236b55] focus:ring-2 focus:ring-[#236b55]/15"
+        defaultValue={defaultValue}
+        name={name}
+      >
+        {options.map((option) => (
+          <option key={option} value={option}>
+            {optionLabels?.[option] ?? option}
+          </option>
+        ))}
+      </select>
+    </label>
+  )
+}
+
+function TextAreaField({
+  label,
+  name,
+  ...props
+}: {
+  label: string
+  name: string
+} & Omit<TextareaHTMLAttributes<HTMLTextAreaElement>, 'className' | 'name'>) {
+  return (
+    <label className="block text-sm">
+      <span className="mb-1 block font-medium text-[#29483d]">{label}</span>
+      <textarea
+        className="min-h-24 w-full rounded-md border border-[#c8d4cf] bg-white px-3 py-2 text-sm text-[#10201a] outline-none transition focus:border-[#236b55] focus:ring-2 focus:ring-[#236b55]/15"
+        name={name}
+        {...props}
+      />
+    </label>
+  )
+}
+
+function CheckboxGroup({
+  defaultValues = [],
+  isLoading,
+  label,
+  name,
+  options,
+}: {
+  defaultValues?: string[]
+  isLoading?: boolean
+  label: string
+  name: string
+  options: string[]
+}) {
+  if (isLoading) {
+    return <LoadingState label={`Loading ${label.toLowerCase()}`} />
+  }
+
+  if (options.length === 0) {
+    return <EmptyState title={`No ${label.toLowerCase()} found`} />
+  }
+
+  return (
+    <fieldset className="text-sm">
+      <legend className="mb-2 block font-medium text-[#29483d]">{label}</legend>
+      <div className="grid max-h-80 gap-2 overflow-y-auto rounded-md border border-[#d9e1de] bg-[#fbfcfb] p-3 md:grid-cols-2">
+        {options.map((option) => (
+          <label className="flex items-center gap-2 rounded-md bg-white px-3 py-2 text-[#10201a]" key={option}>
+            <input className="h-4 w-4 accent-[#236b55]" defaultChecked={defaultValues.includes(option)} name={name} type="checkbox" value={option} />
+            <span className="min-w-0 break-words">{option}</span>
+          </label>
+        ))}
+      </div>
+    </fieldset>
+  )
+}
+
+function FormFooter({
+  isPending,
+  onCancel,
+  submitLabel,
+}: {
+  isPending: boolean
+  onCancel?: () => void
+  submitLabel: string
+}) {
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <button className="rounded-md bg-[#236b55] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-[#8ca79d]" disabled={isPending} type="submit">
+        {isPending ? 'Saving...' : submitLabel}
+      </button>
+      {onCancel ? (
+        <button className="rounded-md border border-[#c8d4cf] bg-white px-4 py-2 text-sm font-medium text-[#29483d]" onClick={onCancel} type="button">
+          Cancel
+        </button>
+      ) : null}
+    </div>
+  )
+}
+
+function MutationState({ isError, isSuccess }: { isError: boolean; isSuccess: boolean }) {
+  if (isError) {
+    return <p className="rounded-md border border-[#e8b8b0] bg-[#fff1ef] px-3 py-2 text-sm text-[#a44a3f]">Action failed. Check the form values and your permissions.</p>
+  }
+
+  if (isSuccess) {
+    return <p className="rounded-md border border-[#b7d8c8] bg-[#edf8f1] px-3 py-2 text-sm text-[#236b55]">Saved successfully.</p>
+  }
+
+  return null
+}
+
+function SmallButton({ children, danger, onClick }: { children: ReactNode; danger?: boolean; onClick: () => void }) {
+  return (
+    <button className={`rounded-md border px-3 py-1.5 text-xs font-medium ${danger ? 'border-[#e8b8b0] bg-[#fff1ef] text-[#a44a3f]' : 'border-[#c8d4cf] bg-white text-[#29483d]'}`} onClick={onClick} type="button">
+      {children}
+    </button>
+  )
+}
+
+function JsonBlock({ label, value }: { label: string; value: Record<string, unknown> | null }) {
+  return (
+    <div>
+      <h4 className="mb-2 font-semibold text-[#10201a]">{label}</h4>
+      <pre className="max-h-72 overflow-auto rounded-md border border-[#d9e1de] bg-[#fbfcfb] p-3 text-xs leading-5 text-[#29483d]">{JSON.stringify(value ?? {}, null, 2)}</pre>
+    </div>
+  )
+}
+
 function StatusBadge({ status }: { status: string }) {
   return <span className={`mr-2 rounded-md border px-2 py-0.5 text-xs font-medium ${statusClass(status)}`}>{status}</span>
+}
+
+function formString(form: FormData, key: string) {
+  const value = form.get(key)
+
+  return typeof value === 'string' ? value.trim() : ''
+}
+
+function formNullable(form: FormData, key: string) {
+  const value = formString(form, key)
+
+  return value === '' ? null : value
+}
+
+function formNullableNumber(form: FormData, key: string) {
+  const value = formString(form, key)
+  const number = Number(value)
+
+  return value === '' || Number.isNaN(number) ? null : number
 }
 
 function NotificationDropdown({

@@ -82,8 +82,9 @@ Checklist:
 - [x] Build admin shell and sidebar navigation.
 - [x] Move dashboard to a real `/dashboard` route.
 - [x] Add route map for all operational modules.
-- [ ] Expand frontend API clients with write operations.
-- [ ] Implement organization, branches, users, roles, permissions, and audit log screens.
+- [x] Expand identity frontend API clients with write operations.
+- [x] Implement organization, branches, users, roles, permissions, and audit log screens.
+- [ ] Expand remaining frontend API clients with write operations.
 - [ ] Implement beneficiary, family member, case file, note, and document screens.
 - [ ] Implement donor, campaign, donation, allocation, payment transaction, and receipt screens.
 - [ ] Implement warehouse, inventory item, stock lot, stock movement, low-stock, and expiring-stock screens.
