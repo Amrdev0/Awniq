@@ -2,7 +2,7 @@
 
 ## 0.10.0 - MVP Release Candidate
 
-Date: 2026-06-28
+Date: 2026-07-11
 
 This release candidate packages the Awniq MVP foundation for public review and manual demo testing.
 
@@ -22,6 +22,9 @@ This release candidate packages the Awniq MVP foundation for public review and m
 - OpenAPI snapshot and Postman collection.
 - GitHub Actions CI for backend and frontend checks.
 - Open-source governance files.
+- Automated MVP release smoke coverage for the demo workflow.
+- Limited-role authorization smoke coverage for auditor, volunteer, finance, warehouse, and distribution roles.
+- Date-stable demo finance seed data so dashboard and export checks do not break across month boundaries.
 
 ### Known Limitations
 

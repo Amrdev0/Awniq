@@ -25,6 +25,8 @@ class DemoFinanceSeeder extends Seeder
         $donors = $this->seedDonors($organization);
         $campaigns = $this->seedCampaigns($organization, $finance);
         $caseFile = CaseFile::where('organization_id', $organization->id)->where('case_number', 'CASE-000001')->firstOrFail();
+        $maxCurrentMonthDaysBack = max(0, now()->day - 1);
+        $withinCurrentMonth = fn (int $days) => now()->subDays(min($days, $maxCurrentMonthDaysBack));
 
         $donationRows = [
             [
@@ -36,8 +38,8 @@ class DemoFinanceSeeder extends Seeder
                 'payment_method' => 'bank_transfer',
                 'payment_status' => 'paid',
                 'donation_status' => 'confirmed',
-                'donated_at' => now()->subDays(14),
-                'confirmed_at' => now()->subDays(13),
+                'donated_at' => $withinCurrentMonth(5),
+                'confirmed_at' => $withinCurrentMonth(4),
                 'notes' => 'Seeded confirmed campaign donation.',
                 'allocations' => [
                     ['allocation_type' => 'campaign', 'campaign_key' => 'ramadan-food-relief', 'amount' => 5000, 'notes' => 'Campaign support'],
@@ -54,7 +56,7 @@ class DemoFinanceSeeder extends Seeder
                 'payment_method' => 'cash',
                 'payment_status' => 'pending',
                 'donation_status' => 'pending',
-                'donated_at' => now()->subDays(7),
+                'donated_at' => $withinCurrentMonth(3),
                 'confirmed_at' => null,
                 'notes' => 'Pending donation awaiting manual confirmation.',
                 'allocations' => [
@@ -73,8 +75,8 @@ class DemoFinanceSeeder extends Seeder
                 'payment_method' => 'mobile_wallet',
                 'payment_status' => 'paid',
                 'donation_status' => 'confirmed',
-                'donated_at' => now()->subDays(5),
-                'confirmed_at' => now()->subDays(5),
+                'donated_at' => $withinCurrentMonth(2),
+                'confirmed_at' => $withinCurrentMonth(2),
                 'notes' => 'Seeded confirmed case-specific donation.',
                 'allocations' => [
                     ['allocation_type' => 'case_file', 'case_file_id' => $caseFile->id, 'amount' => 3000, 'notes' => 'Approved case support'],
@@ -91,7 +93,7 @@ class DemoFinanceSeeder extends Seeder
                 'payment_method' => 'cash',
                 'payment_status' => 'cancelled',
                 'donation_status' => 'cancelled',
-                'donated_at' => now()->subDays(3),
+                'donated_at' => $withinCurrentMonth(1),
                 'confirmed_at' => null,
                 'notes' => 'Cancelled demo donation.',
                 'allocations' => [
@@ -109,7 +111,7 @@ class DemoFinanceSeeder extends Seeder
                 'payment_method' => 'check',
                 'payment_status' => 'pending',
                 'donation_status' => 'draft',
-                'donated_at' => now()->subDay(),
+                'donated_at' => now(),
                 'confirmed_at' => null,
                 'notes' => 'Draft donation for manual testing.',
                 'allocations' => [

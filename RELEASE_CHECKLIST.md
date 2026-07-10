@@ -24,22 +24,24 @@ Use this checklist before tagging a public release.
 
 ## Verify Before Tagging
 
-- [ ] `composer lint`
-- [ ] `composer test`
-- [ ] `php artisan migrate:fresh --seed`
-- [ ] `npm run lint`
-- [ ] `npm run test`
-- [ ] `npm run build`
+- [x] `composer lint`
+- [x] `composer test`
+- [x] `php artisan migrate:fresh --seed`
+- [x] `npm run lint`
+- [x] `npm run test`
+- [x] `npm run build`
+- [x] Postman collection JSON parses successfully.
 - [ ] Postman collection imports successfully.
 - [ ] OpenAPI snapshot validates.
+- [x] Automated MVP release smoke workflow passes.
+- [x] Limited-role authorization smoke checks pass.
 - [ ] Manual demo walkthrough passes.
-- [ ] Limited-role authorization smoke checks pass.
 - [ ] Screenshots are captured from seeded demo data.
 
 ## Release Notes
 
-- [ ] Version number is final.
-- [ ] Known limitations are current.
-- [ ] Any breaking changes are documented.
-- [ ] Deployment notes are current.
+- [x] Version number is final.
+- [x] Known limitations are current.
+- [x] Any breaking changes are documented.
+- [x] Deployment notes are current.
 - [ ] Tag is created only after the repository is clean.
