@@ -39,7 +39,7 @@ Implemented so far:
 
 Important current gap:
 
-- Phase 11 has started with an admin shell, sidebar navigation, `/dashboard`, routed module pages, and identity control screens for organization, branches, users, roles, permissions, and audit logs. Awniq still needs Phase 11 follow-up slices before a product MVP release: create/edit forms, detail pages, workflow actions, and deeper permission-aware controls for non-identity operational modules.
+- Phase 11 has started with an admin shell, sidebar navigation, `/dashboard`, routed module pages, identity control screens, and beneficiary/case operations screens. Awniq still needs Phase 11 follow-up slices before a product MVP release: finance, inventory, aid distribution, reports, public settings, notification controls, and deeper permission-aware UI coverage.
 
 ## Tech Stack
 
@@ -357,7 +357,7 @@ npm run build
 - RTL and localization are planned but not complete.
 - Data retention policies are documented but not automated.
 - Screenshots are not checked in yet; capture them from seeded demo data before tagging a public release.
-- Full admin control screens are not complete yet; non-identity operational writes still require API/Postman rather than browser UI.
+- Full admin control screens are not complete yet; finance, inventory, aid distribution, report/export, public settings, and notification writes still require API/Postman rather than browser UI.
 
 ## GitHub Push Notes
 

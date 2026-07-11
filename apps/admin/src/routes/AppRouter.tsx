@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import type { ComponentType, FormEvent, InputHTMLAttributes, ReactNode, TextareaHTMLAttributes } from 'react'
+import type { ComponentType, FormEvent, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react'
 import { createBrowserRouter, Navigate, NavLink, Outlet, RouterProvider, useLocation } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
@@ -32,7 +32,44 @@ import { LoadingState } from '../components/ui/LoadingState'
 import { UnauthorizedState } from '../components/ui/UnauthorizedState'
 import { getAidBatches } from '../services/api/aid'
 import { getMe, login, logout, type CurrentUser } from '../services/api/auth'
-import { getBeneficiaries, getCaseFiles } from '../services/api/cases'
+import {
+  approveBeneficiary,
+  approveCaseFile,
+  closeCaseFile,
+  createBeneficiary,
+  createCaseFile,
+  createCaseNote,
+  createFamilyMember,
+  deleteBeneficiary,
+  deleteCaseDocument,
+  deleteCaseFile,
+  deleteCaseNote,
+  deleteFamilyMember,
+  downloadCaseDocument,
+  getBeneficiaries,
+  getBeneficiary,
+  getCaseFile,
+  getCaseFiles,
+  reactivateBeneficiary,
+  rejectBeneficiary,
+  rejectCaseFile,
+  reopenCaseFile,
+  submitBeneficiaryReview,
+  submitCaseReview,
+  suspendBeneficiary,
+  suspendCaseFile,
+  updateBeneficiary,
+  updateCaseFile,
+  updateCaseNote,
+  updateFamilyMember,
+  uploadCaseDocument,
+  type BeneficiaryInput,
+  type CaseDocument,
+  type CaseFileInput,
+  type CaseNote,
+  type FamilyMember,
+  type FamilyMemberInput,
+} from '../services/api/cases'
 import { getCampaigns, getDonations, getDonors } from '../services/api/finance'
 import {
   createBranch,
@@ -900,10 +937,172 @@ function AuditLogsPage() {
 }
 
 function BeneficiariesPage() {
+  const queryClient = useQueryClient()
+  const [selectedBeneficiaryId, setSelectedBeneficiaryId] = useState<number | null>(null)
+  const [editingBeneficiaryId, setEditingBeneficiaryId] = useState<number | null>(null)
+  const [editingFamilyMember, setEditingFamilyMember] = useState<FamilyMember | null>(null)
   const beneficiaries = useQuery({ queryKey: ['beneficiaries'], queryFn: getBeneficiaries })
+  const branches = useQuery({ queryKey: ['branches'], queryFn: getBranches })
+  const beneficiaryDetail = useQuery({
+    queryKey: ['beneficiary', selectedBeneficiaryId],
+    queryFn: () => getBeneficiary(selectedBeneficiaryId as number),
+    enabled: selectedBeneficiaryId !== null,
+  })
+  const editingBeneficiary = editingBeneficiaryId ? beneficiaryDetail.data ?? beneficiaries.data?.find((beneficiary) => beneficiary.id === editingBeneficiaryId) ?? null : null
+
+  useEffect(() => {
+    setEditingFamilyMember(null)
+  }, [selectedBeneficiaryId])
+
+  function refreshBeneficiaries(id?: number | null) {
+    void queryClient.invalidateQueries({ queryKey: ['beneficiaries'] })
+
+    if (id) {
+      void queryClient.invalidateQueries({ queryKey: ['beneficiary', id] })
+    }
+  }
+
+  const createMutation = useMutation({
+    mutationFn: createBeneficiary,
+    onSuccess: (beneficiary) => {
+      setSelectedBeneficiaryId(beneficiary.id)
+      setEditingBeneficiaryId(null)
+      refreshBeneficiaries(beneficiary.id)
+    },
+  })
+  const updateMutation = useMutation({
+    mutationFn: ({ id, input }: { id: number; input: BeneficiaryInput }) => updateBeneficiary(id, input),
+    onSuccess: (beneficiary) => {
+      setSelectedBeneficiaryId(beneficiary.id)
+      setEditingBeneficiaryId(null)
+      refreshBeneficiaries(beneficiary.id)
+    },
+  })
+  const deleteMutation = useMutation({
+    mutationFn: deleteBeneficiary,
+    onSuccess: (_, id) => {
+      if (selectedBeneficiaryId === id) {
+        setSelectedBeneficiaryId(null)
+        setEditingBeneficiaryId(null)
+      }
+
+      refreshBeneficiaries(null)
+    },
+  })
+  const workflowMutation = useMutation({
+    mutationFn: ({ action, id, reason }: { action: 'submit' | 'approve' | 'reject' | 'suspend' | 'reactivate'; id: number; reason?: string }) => {
+      if (action === 'submit') {
+        return submitBeneficiaryReview(id)
+      }
+
+      if (action === 'approve') {
+        return approveBeneficiary(id)
+      }
+
+      if (action === 'reject') {
+        return rejectBeneficiary(id, reason ?? '')
+      }
+
+      if (action === 'suspend') {
+        return suspendBeneficiary(id)
+      }
+
+      return reactivateBeneficiary(id)
+    },
+    onSuccess: (beneficiary) => refreshBeneficiaries(beneficiary.id),
+  })
+  const createFamilyMutation = useMutation({
+    mutationFn: ({ beneficiaryId, input }: { beneficiaryId: number; input: FamilyMemberInput }) => createFamilyMember(beneficiaryId, input),
+    onSuccess: (_, variables) => {
+      setEditingFamilyMember(null)
+      refreshBeneficiaries(variables.beneficiaryId)
+    },
+  })
+  const updateFamilyMutation = useMutation({
+    mutationFn: ({ beneficiaryId, familyMemberId, input }: { beneficiaryId: number; familyMemberId: number; input: FamilyMemberInput }) => updateFamilyMember(beneficiaryId, familyMemberId, input),
+    onSuccess: (_, variables) => {
+      setEditingFamilyMember(null)
+      refreshBeneficiaries(variables.beneficiaryId)
+    },
+  })
+  const deleteFamilyMutation = useMutation({
+    mutationFn: ({ beneficiaryId, familyMemberId }: { beneficiaryId: number; familyMemberId: number }) => deleteFamilyMember(beneficiaryId, familyMemberId),
+    onSuccess: (_, variables) => refreshBeneficiaries(variables.beneficiaryId),
+  })
+
+  function buildBeneficiaryInput(form: FormData): BeneficiaryInput {
+    return {
+      branch_id: Number(formString(form, 'branch_id')),
+      full_name: formString(form, 'full_name'),
+      national_id: formNullable(form, 'national_id'),
+      birth_date: formNullable(form, 'birth_date'),
+      gender: formNullable(form, 'gender') as BeneficiaryInput['gender'],
+      phone: formNullable(form, 'phone'),
+      alternate_phone: formNullable(form, 'alternate_phone'),
+      email: formNullable(form, 'email'),
+      country: formNullable(form, 'country'),
+      city: formNullable(form, 'city'),
+      district: formNullable(form, 'district'),
+      address: formNullable(form, 'address'),
+      marital_status: formNullable(form, 'marital_status'),
+      employment_status: formNullable(form, 'employment_status'),
+      monthly_income: formNullableNumber(form, 'monthly_income'),
+      household_size: formNullableNumber(form, 'household_size'),
+      vulnerability_level: formNullable(form, 'vulnerability_level') as BeneficiaryInput['vulnerability_level'],
+      status: formNullable(form, 'status') as BeneficiaryInput['status'],
+    }
+  }
+
+  function buildFamilyMemberInput(form: FormData): FamilyMemberInput {
+    return {
+      full_name: formString(form, 'family_full_name'),
+      relationship: formString(form, 'relationship'),
+      birth_date: formNullable(form, 'family_birth_date'),
+      gender: formNullable(form, 'family_gender') as FamilyMemberInput['gender'],
+      national_id: formNullable(form, 'family_national_id'),
+      education_level: formNullable(form, 'education_level'),
+      employment_status: formNullable(form, 'family_employment_status'),
+      health_notes: formNullable(form, 'health_notes'),
+    }
+  }
+
+  function handleBeneficiarySubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const input = buildBeneficiaryInput(new FormData(event.currentTarget))
+
+    if (editingBeneficiaryId) {
+      updateMutation.mutate({ id: editingBeneficiaryId, input })
+    } else {
+      createMutation.mutate(input)
+    }
+  }
+
+  function handleFamilyMemberSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!selectedBeneficiaryId) {
+      return
+    }
+
+    const input = buildFamilyMemberInput(new FormData(event.currentTarget))
+
+    if (editingFamilyMember) {
+      updateFamilyMutation.mutate({ beneficiaryId: selectedBeneficiaryId, familyMemberId: editingFamilyMember.id, input })
+    } else {
+      createFamilyMutation.mutate({ beneficiaryId: selectedBeneficiaryId, input })
+    }
+  }
+
+  function runBeneficiaryReject(id: number) {
+    const reason = window.prompt('Rejection reason')?.trim()
+
+    if (reason) {
+      workflowMutation.mutate({ action: 'reject', id, reason })
+    }
+  }
 
   return (
-    <ModulePage description="Register beneficiaries, review eligibility, and manage household details." title="Beneficiaries" planned={['Add create/edit/detail pages.', 'Add review, approve, reject, suspend, and reactivate actions.', 'Add family member management.']}>
+    <ModulePage description="Register beneficiaries, review eligibility, and manage household details." title="Beneficiaries">
       <Panel icon={<Users size={20} />} title="Beneficiaries">
         <RecordList
           isError={beneficiaries.isError}
@@ -911,21 +1110,325 @@ function BeneficiariesPage() {
           items={beneficiaries.data}
           label="beneficiaries"
           render={(beneficiary) => (
-            <>
-              <StatusBadge status={beneficiary.status} /> {beneficiary.code} - {beneficiary.full_name} - {beneficiary.vulnerability_level} - {beneficiary.household_size} household
-            </>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>
+                <StatusBadge status={beneficiary.status} /> {beneficiary.code} - {beneficiary.full_name} - {beneficiary.vulnerability_level} - {beneficiary.household_size} household
+              </span>
+              <span className="flex flex-wrap gap-2">
+                <SmallButton onClick={() => setSelectedBeneficiaryId(beneficiary.id)}>Details</SmallButton>
+                <SmallButton
+                  onClick={() => {
+                    setSelectedBeneficiaryId(beneficiary.id)
+                    setEditingBeneficiaryId(beneficiary.id)
+                  }}
+                >
+                  Edit
+                </SmallButton>
+                <SmallButton danger onClick={() => window.confirm(`Delete ${beneficiary.full_name}?`) && deleteMutation.mutate(beneficiary.id)}>
+                  Delete
+                </SmallButton>
+              </span>
+            </div>
           )}
         />
+      </Panel>
+      <Panel icon={<FileText size={20} />} title="Beneficiary Detail">
+        {selectedBeneficiaryId ? (
+          beneficiaryDetail.data ? (
+            <div className="space-y-4">
+              <KeyValueRows
+                rows={[
+                  ['Code', beneficiaryDetail.data.code],
+                  ['Name', beneficiaryDetail.data.full_name],
+                  ['Branch', beneficiaryDetail.data.branch ? `${beneficiaryDetail.data.branch.code} - ${beneficiaryDetail.data.branch.name}` : null],
+                  ['Status', beneficiaryDetail.data.status],
+                  ['Vulnerability', beneficiaryDetail.data.vulnerability_level],
+                  ['Household size', String(beneficiaryDetail.data.household_size)],
+                  ['National ID', beneficiaryDetail.data.national_id],
+                  ['Phone', beneficiaryDetail.data.phone],
+                  ['Location', [beneficiaryDetail.data.city, beneficiaryDetail.data.district, beneficiaryDetail.data.country].filter(Boolean).join(', ') || null],
+                  ['Rejection reason', beneficiaryDetail.data.rejection_reason],
+                ]}
+              />
+              <div className="flex flex-wrap gap-2">
+                {['draft', 'rejected'].includes(beneficiaryDetail.data.status) ? <SmallButton onClick={() => workflowMutation.mutate({ action: 'submit', id: beneficiaryDetail.data.id })}>Submit review</SmallButton> : null}
+                {beneficiaryDetail.data.status === 'pending_review' ? <SmallButton onClick={() => workflowMutation.mutate({ action: 'approve', id: beneficiaryDetail.data.id })}>Approve</SmallButton> : null}
+                {beneficiaryDetail.data.status === 'pending_review' ? <SmallButton danger onClick={() => runBeneficiaryReject(beneficiaryDetail.data.id)}>Reject</SmallButton> : null}
+                {['draft', 'pending_review', 'approved', 'rejected'].includes(beneficiaryDetail.data.status) ? <SmallButton danger onClick={() => workflowMutation.mutate({ action: 'suspend', id: beneficiaryDetail.data.id })}>Suspend</SmallButton> : null}
+                {['suspended', 'archived'].includes(beneficiaryDetail.data.status) ? <SmallButton onClick={() => workflowMutation.mutate({ action: 'reactivate', id: beneficiaryDetail.data.id })}>Reactivate</SmallButton> : null}
+              </div>
+            </div>
+          ) : (
+            <LoadingOrEmpty isError={beneficiaryDetail.isError} isLoading={beneficiaryDetail.isPending} label="Loading beneficiary" />
+          )
+        ) : (
+          <EmptyState title="Select a beneficiary" />
+        )}
+      </Panel>
+      <Panel icon={<Settings size={20} />} title={editingBeneficiary ? `Edit ${editingBeneficiary.full_name}` : 'Create Beneficiary'}>
+        <form className="space-y-4" key={editingBeneficiary?.id ?? 'new-beneficiary'} onSubmit={handleBeneficiarySubmit}>
+          <FormGrid>
+            <SelectField
+              defaultValue={editingBeneficiary?.branch_id ? String(editingBeneficiary.branch_id) : ''}
+              label="Branch"
+              name="branch_id"
+              optionLabels={{ '': 'Select branch', ...(branches.data ?? []).reduce<Record<string, string>>((labels, branch) => ({ ...labels, [String(branch.id)]: `${branch.code} - ${branch.name}` }), {}) }}
+              options={['', ...(branches.data ?? []).map((branch) => String(branch.id))]}
+              required
+            />
+            <TextField defaultValue={editingBeneficiary?.full_name ?? ''} label="Full name" name="full_name" required />
+            <TextField defaultValue={editingBeneficiary?.national_id ?? ''} label="National ID" name="national_id" />
+            <TextField defaultValue={editingBeneficiary?.birth_date ?? ''} label="Birth date" name="birth_date" type="date" />
+            <SelectField defaultValue={editingBeneficiary?.gender ?? 'unknown'} label="Gender" name="gender" options={['unknown', 'male', 'female', 'other']} />
+            <TextField defaultValue={editingBeneficiary?.phone ?? ''} label="Phone" name="phone" />
+            <TextField defaultValue={editingBeneficiary?.alternate_phone ?? ''} label="Alternate phone" name="alternate_phone" />
+            <TextField defaultValue={editingBeneficiary?.email ?? ''} label="Email" name="email" type="email" />
+            <TextField defaultValue={editingBeneficiary?.country ?? ''} label="Country" name="country" />
+            <TextField defaultValue={editingBeneficiary?.city ?? ''} label="City" name="city" />
+            <TextField defaultValue={editingBeneficiary?.district ?? ''} label="District" name="district" />
+            <SelectField defaultValue={editingBeneficiary?.marital_status ?? 'unknown'} label="Marital status" name="marital_status" options={['unknown', 'single', 'married', 'widowed', 'divorced', 'separated']} />
+            <SelectField defaultValue={editingBeneficiary?.employment_status ?? 'unknown'} label="Employment" name="employment_status" options={['unknown', 'employed', 'unemployed', 'self_employed', 'student', 'retired', 'unable_to_work']} />
+            <TextField defaultValue={editingBeneficiary?.monthly_income ?? ''} label="Monthly income" min={0} name="monthly_income" step="0.01" type="number" />
+            <TextField defaultValue={editingBeneficiary?.household_size ?? 1} label="Household size" max={100} min={1} name="household_size" type="number" />
+            <SelectField defaultValue={editingBeneficiary?.vulnerability_level ?? 'medium'} label="Vulnerability" name="vulnerability_level" options={['low', 'medium', 'high', 'critical']} />
+            <SelectField defaultValue={editingBeneficiary?.status ?? 'draft'} label="Status" name="status" options={['draft', 'pending_review', 'approved', 'rejected', 'suspended', 'archived']} />
+          </FormGrid>
+          <TextAreaField defaultValue={editingBeneficiary?.address ?? ''} label="Address" name="address" />
+          <FormFooter isPending={createMutation.isPending || updateMutation.isPending} onCancel={editingBeneficiaryId ? () => setEditingBeneficiaryId(null) : undefined} submitLabel={editingBeneficiary ? 'Save beneficiary' : 'Create beneficiary'} />
+          <MutationState isError={createMutation.isError || updateMutation.isError || deleteMutation.isError || workflowMutation.isError} isSuccess={createMutation.isSuccess || updateMutation.isSuccess || deleteMutation.isSuccess || workflowMutation.isSuccess} />
+        </form>
+      </Panel>
+      <Panel icon={<Users size={20} />} title="Family Members">
+        {beneficiaryDetail.data ? (
+          <div className="space-y-4">
+            <RecordList
+              items={beneficiaryDetail.data.family_members ?? []}
+              label="family members"
+              render={(familyMember) => (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span>
+                    {familyMember.full_name} - {familyMember.relationship} - {familyMember.gender ?? 'unknown'}
+                  </span>
+                  <span className="flex gap-2">
+                    <SmallButton onClick={() => setEditingFamilyMember(familyMember)}>Edit</SmallButton>
+                    <SmallButton danger onClick={() => selectedBeneficiaryId && window.confirm(`Delete ${familyMember.full_name}?`) && deleteFamilyMutation.mutate({ beneficiaryId: selectedBeneficiaryId, familyMemberId: familyMember.id })}>
+                      Delete
+                    </SmallButton>
+                  </span>
+                </div>
+              )}
+            />
+            <form className="space-y-4" key={editingFamilyMember?.id ?? `family-${selectedBeneficiaryId}`} onSubmit={handleFamilyMemberSubmit}>
+              <FormGrid>
+                <TextField defaultValue={editingFamilyMember?.full_name ?? ''} label="Full name" name="family_full_name" required />
+                <TextField defaultValue={editingFamilyMember?.relationship ?? ''} label="Relationship" name="relationship" required />
+                <TextField defaultValue={editingFamilyMember?.birth_date ?? ''} label="Birth date" name="family_birth_date" type="date" />
+                <SelectField defaultValue={editingFamilyMember?.gender ?? 'unknown'} label="Gender" name="family_gender" options={['unknown', 'male', 'female', 'other']} />
+                <TextField defaultValue={editingFamilyMember?.national_id ?? ''} label="National ID" name="family_national_id" />
+                <TextField defaultValue={editingFamilyMember?.education_level ?? ''} label="Education" name="education_level" />
+                <TextField defaultValue={editingFamilyMember?.employment_status ?? ''} label="Employment" name="family_employment_status" />
+              </FormGrid>
+              <TextAreaField defaultValue={editingFamilyMember?.health_notes ?? ''} label="Health notes" name="health_notes" />
+              <FormFooter isPending={createFamilyMutation.isPending || updateFamilyMutation.isPending} onCancel={editingFamilyMember ? () => setEditingFamilyMember(null) : undefined} submitLabel={editingFamilyMember ? 'Save family member' : 'Add family member'} />
+              <MutationState isError={createFamilyMutation.isError || updateFamilyMutation.isError || deleteFamilyMutation.isError} isSuccess={createFamilyMutation.isSuccess || updateFamilyMutation.isSuccess || deleteFamilyMutation.isSuccess} />
+            </form>
+          </div>
+        ) : (
+          <EmptyState title="Select a beneficiary" />
+        )}
       </Panel>
     </ModulePage>
   )
 }
 
 function CaseFilesPage() {
+  const queryClient = useQueryClient()
+  const [selectedCaseFileId, setSelectedCaseFileId] = useState<number | null>(null)
+  const [editingCaseFileId, setEditingCaseFileId] = useState<number | null>(null)
+  const [editingCaseNote, setEditingCaseNote] = useState<CaseNote | null>(null)
   const caseFiles = useQuery({ queryKey: ['case-files'], queryFn: getCaseFiles })
+  const beneficiaries = useQuery({ queryKey: ['beneficiaries'], queryFn: getBeneficiaries })
+  const users = useQuery({ queryKey: ['users'], queryFn: getUsers })
+  const caseFileDetail = useQuery({
+    queryKey: ['case-file', selectedCaseFileId],
+    queryFn: () => getCaseFile(selectedCaseFileId as number),
+    enabled: selectedCaseFileId !== null,
+  })
+  const editingCaseFile = editingCaseFileId ? caseFileDetail.data ?? caseFiles.data?.find((caseFile) => caseFile.id === editingCaseFileId) ?? null : null
+
+  useEffect(() => {
+    setEditingCaseNote(null)
+  }, [selectedCaseFileId])
+
+  function refreshCaseFiles(id?: number | null) {
+    void queryClient.invalidateQueries({ queryKey: ['case-files'] })
+    void queryClient.invalidateQueries({ queryKey: ['beneficiaries'] })
+
+    if (id) {
+      void queryClient.invalidateQueries({ queryKey: ['case-file', id] })
+    }
+  }
+
+  const createMutation = useMutation({
+    mutationFn: createCaseFile,
+    onSuccess: (caseFile) => {
+      setSelectedCaseFileId(caseFile.id)
+      setEditingCaseFileId(null)
+      refreshCaseFiles(caseFile.id)
+    },
+  })
+  const updateMutation = useMutation({
+    mutationFn: ({ id, input }: { id: number; input: CaseFileInput }) => updateCaseFile(id, input),
+    onSuccess: (caseFile) => {
+      setSelectedCaseFileId(caseFile.id)
+      setEditingCaseFileId(null)
+      refreshCaseFiles(caseFile.id)
+    },
+  })
+  const deleteMutation = useMutation({
+    mutationFn: deleteCaseFile,
+    onSuccess: (_, id) => {
+      if (selectedCaseFileId === id) {
+        setSelectedCaseFileId(null)
+        setEditingCaseFileId(null)
+      }
+
+      refreshCaseFiles(null)
+    },
+  })
+  const workflowMutation = useMutation({
+    mutationFn: ({ action, id, reason }: { action: 'submit' | 'approve' | 'reject' | 'suspend' | 'close' | 'reopen'; id: number; reason?: string }) => {
+      if (action === 'submit') {
+        return submitCaseReview(id)
+      }
+
+      if (action === 'approve') {
+        return approveCaseFile(id)
+      }
+
+      if (action === 'reject') {
+        return rejectCaseFile(id, reason ?? '')
+      }
+
+      if (action === 'suspend') {
+        return suspendCaseFile(id)
+      }
+
+      if (action === 'close') {
+        return closeCaseFile(id)
+      }
+
+      return reopenCaseFile(id)
+    },
+    onSuccess: (caseFile) => refreshCaseFiles(caseFile.id),
+  })
+  const createNoteMutation = useMutation({
+    mutationFn: ({ caseFileId, input }: { caseFileId: number; input: Parameters<typeof createCaseNote>[1] }) => createCaseNote(caseFileId, input),
+    onSuccess: (_, variables) => {
+      setEditingCaseNote(null)
+      refreshCaseFiles(variables.caseFileId)
+    },
+  })
+  const updateNoteMutation = useMutation({
+    mutationFn: ({ caseFileId, input, noteId }: { caseFileId: number; input: Parameters<typeof updateCaseNote>[2]; noteId: number }) => updateCaseNote(caseFileId, noteId, input),
+    onSuccess: (_, variables) => {
+      setEditingCaseNote(null)
+      refreshCaseFiles(variables.caseFileId)
+    },
+  })
+  const deleteNoteMutation = useMutation({
+    mutationFn: ({ caseFileId, noteId }: { caseFileId: number; noteId: number }) => deleteCaseNote(caseFileId, noteId),
+    onSuccess: (_, variables) => refreshCaseFiles(variables.caseFileId),
+  })
+  const uploadDocumentMutation = useMutation({
+    mutationFn: ({ caseFileId, file, type }: { caseFileId: number; file: File; type: string }) => uploadCaseDocument(caseFileId, { document_type: type, file }),
+    onSuccess: (_, variables) => refreshCaseFiles(variables.caseFileId),
+  })
+  const deleteDocumentMutation = useMutation({
+    mutationFn: ({ caseFileId, documentId }: { caseFileId: number; documentId: number }) => deleteCaseDocument(caseFileId, documentId),
+    onSuccess: (_, variables) => refreshCaseFiles(variables.caseFileId),
+  })
+  const downloadDocumentMutation = useMutation({
+    mutationFn: async ({ caseDocument, caseFileId }: { caseDocument: CaseDocument; caseFileId: number }) => {
+      const blob = await downloadCaseDocument(caseFileId, caseDocument.id)
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.download = caseDocument.original_filename
+      link.click()
+      URL.revokeObjectURL(url)
+    },
+  })
+
+  function buildCaseFileInput(form: FormData): CaseFileInput {
+    return {
+      beneficiary_id: Number(formString(form, 'beneficiary_id')),
+      case_type: formString(form, 'case_type'),
+      priority: formNullable(form, 'priority') as CaseFileInput['priority'],
+      status: formNullable(form, 'status') as CaseFileInput['status'],
+      assigned_to_user_id: formNullableNumber(form, 'assigned_to_user_id'),
+      rejection_reason: formNullable(form, 'case_rejection_reason'),
+      assessment_summary: formNullable(form, 'assessment_summary'),
+      next_follow_up_date: formNullable(form, 'next_follow_up_date'),
+    }
+  }
+
+  function handleCaseFileSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const input = buildCaseFileInput(new FormData(event.currentTarget))
+
+    if (editingCaseFileId) {
+      updateMutation.mutate({ id: editingCaseFileId, input })
+    } else {
+      createMutation.mutate(input)
+    }
+  }
+
+  function handleCaseNoteSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!selectedCaseFileId) {
+      return
+    }
+
+    const form = new FormData(event.currentTarget)
+    const input = {
+      note: formString(form, 'case_note'),
+      visibility: formNullable(form, 'note_visibility') as Parameters<typeof createCaseNote>[1]['visibility'],
+    }
+
+    if (editingCaseNote) {
+      updateNoteMutation.mutate({ caseFileId: selectedCaseFileId, input, noteId: editingCaseNote.id })
+    } else {
+      createNoteMutation.mutate({ caseFileId: selectedCaseFileId, input })
+    }
+  }
+
+  function handleDocumentUpload(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!selectedCaseFileId) {
+      return
+    }
+
+    const form = new FormData(event.currentTarget)
+    const file = form.get('file')
+
+    if (file instanceof File && file.size > 0) {
+      uploadDocumentMutation.mutate({ caseFileId: selectedCaseFileId, file, type: formString(form, 'document_type') })
+    }
+  }
+
+  function runCaseReject(id: number) {
+    const reason = window.prompt('Rejection reason')?.trim()
+
+    if (reason) {
+      workflowMutation.mutate({ action: 'reject', id, reason })
+    }
+  }
 
   return (
-    <ModulePage description="Manage case files, notes, documents, and approval workflows." title="Case Files" planned={['Add create/edit/detail pages.', 'Add notes and documents screens.', 'Add submit, approve, reject, close, and reopen actions.']}>
+    <ModulePage description="Manage case files, notes, documents, and approval workflows." title="Case Files">
       <Panel icon={<FileText size={20} />} title="Case Files">
         <RecordList
           isError={caseFiles.isError}
@@ -933,11 +1436,161 @@ function CaseFilesPage() {
           items={caseFiles.data}
           label="case files"
           render={(caseFile) => (
-            <>
-              <StatusBadge status={caseFile.status} /> {caseFile.case_number} - {caseFile.beneficiary?.full_name ?? 'Unassigned'} - {caseFile.case_type} - {caseFile.priority}
-            </>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>
+                <StatusBadge status={caseFile.status} /> {caseFile.case_number} - {caseFile.beneficiary?.full_name ?? 'Unassigned'} - {caseFile.case_type} - {caseFile.priority}
+              </span>
+              <span className="flex flex-wrap gap-2">
+                <SmallButton onClick={() => setSelectedCaseFileId(caseFile.id)}>Details</SmallButton>
+                <SmallButton
+                  onClick={() => {
+                    setSelectedCaseFileId(caseFile.id)
+                    setEditingCaseFileId(caseFile.id)
+                  }}
+                >
+                  Edit
+                </SmallButton>
+                <SmallButton danger onClick={() => window.confirm(`Delete ${caseFile.case_number}?`) && deleteMutation.mutate(caseFile.id)}>
+                  Delete
+                </SmallButton>
+              </span>
+            </div>
           )}
         />
+      </Panel>
+      <Panel icon={<FileText size={20} />} title="Case Detail">
+        {selectedCaseFileId ? (
+          caseFileDetail.data ? (
+            <div className="space-y-4">
+              <KeyValueRows
+                rows={[
+                  ['Case number', caseFileDetail.data.case_number],
+                  ['Beneficiary', caseFileDetail.data.beneficiary ? `${caseFileDetail.data.beneficiary.code} - ${caseFileDetail.data.beneficiary.full_name}` : null],
+                  ['Status', caseFileDetail.data.status],
+                  ['Type', caseFileDetail.data.case_type],
+                  ['Priority', caseFileDetail.data.priority],
+                  ['Assigned to', caseFileDetail.data.assigned_to?.email ?? null],
+                  ['Next follow-up', caseFileDetail.data.next_follow_up_date],
+                  ['Notes', String(caseFileDetail.data.notes_count ?? caseFileDetail.data.notes?.length ?? 0)],
+                  ['Documents', String(caseFileDetail.data.documents_count ?? caseFileDetail.data.documents?.length ?? 0)],
+                  ['Rejection reason', caseFileDetail.data.rejection_reason],
+                ]}
+              />
+              <p className="text-sm leading-6 text-[#52645e]">{caseFileDetail.data.assessment_summary ?? 'No assessment summary.'}</p>
+              <div className="flex flex-wrap gap-2">
+                {['open', 'rejected'].includes(caseFileDetail.data.status) ? <SmallButton onClick={() => workflowMutation.mutate({ action: 'submit', id: caseFileDetail.data.id })}>Submit review</SmallButton> : null}
+                {caseFileDetail.data.status === 'under_review' ? <SmallButton onClick={() => workflowMutation.mutate({ action: 'approve', id: caseFileDetail.data.id })}>Approve</SmallButton> : null}
+                {caseFileDetail.data.status === 'under_review' ? <SmallButton danger onClick={() => runCaseReject(caseFileDetail.data.id)}>Reject</SmallButton> : null}
+                {['open', 'under_review', 'approved', 'rejected'].includes(caseFileDetail.data.status) ? <SmallButton danger onClick={() => workflowMutation.mutate({ action: 'suspend', id: caseFileDetail.data.id })}>Suspend</SmallButton> : null}
+                {['open', 'under_review', 'approved', 'rejected', 'suspended'].includes(caseFileDetail.data.status) ? <SmallButton onClick={() => workflowMutation.mutate({ action: 'close', id: caseFileDetail.data.id })}>Close</SmallButton> : null}
+                {['closed', 'rejected', 'suspended'].includes(caseFileDetail.data.status) ? <SmallButton onClick={() => workflowMutation.mutate({ action: 'reopen', id: caseFileDetail.data.id })}>Reopen</SmallButton> : null}
+              </div>
+            </div>
+          ) : (
+            <LoadingOrEmpty isError={caseFileDetail.isError} isLoading={caseFileDetail.isPending} label="Loading case file" />
+          )
+        ) : (
+          <EmptyState title="Select a case file" />
+        )}
+      </Panel>
+      <Panel icon={<Settings size={20} />} title={editingCaseFile ? `Edit ${editingCaseFile.case_number}` : 'Create Case File'}>
+        <form className="space-y-4" key={editingCaseFile?.id ?? 'new-case-file'} onSubmit={handleCaseFileSubmit}>
+          <FormGrid>
+            <SelectField
+              defaultValue={editingCaseFile?.beneficiary_id ? String(editingCaseFile.beneficiary_id) : ''}
+              label="Beneficiary"
+              name="beneficiary_id"
+              optionLabels={{ '': 'Select beneficiary', ...(beneficiaries.data ?? []).reduce<Record<string, string>>((labels, beneficiary) => ({ ...labels, [String(beneficiary.id)]: `${beneficiary.code} - ${beneficiary.full_name}` }), {}) }}
+              options={['', ...(beneficiaries.data ?? []).map((beneficiary) => String(beneficiary.id))]}
+              required
+            />
+            <TextField defaultValue={editingCaseFile?.case_type ?? ''} label="Case type" name="case_type" required />
+            <SelectField defaultValue={editingCaseFile?.priority ?? 'medium'} label="Priority" name="priority" options={['low', 'medium', 'high', 'urgent']} />
+            <SelectField defaultValue={editingCaseFile?.status ?? 'open'} label="Status" name="status" options={['open', 'under_review', 'approved', 'rejected', 'suspended', 'closed']} />
+            <SelectField
+              defaultValue={editingCaseFile?.assigned_to_user_id ? String(editingCaseFile.assigned_to_user_id) : ''}
+              label="Assigned to"
+              name="assigned_to_user_id"
+              optionLabels={{ '': 'Unassigned', ...(users.data ?? []).reduce<Record<string, string>>((labels, user) => ({ ...labels, [String(user.id)]: `${user.name} (${user.email})` }), {}) }}
+              options={['', ...(users.data ?? []).map((user) => String(user.id))]}
+            />
+            <TextField defaultValue={editingCaseFile?.next_follow_up_date ?? ''} label="Next follow-up" name="next_follow_up_date" type="date" />
+          </FormGrid>
+          <TextAreaField defaultValue={editingCaseFile?.assessment_summary ?? ''} label="Assessment summary" name="assessment_summary" />
+          <TextAreaField defaultValue={editingCaseFile?.rejection_reason ?? ''} label="Rejection reason" name="case_rejection_reason" />
+          <FormFooter isPending={createMutation.isPending || updateMutation.isPending} onCancel={editingCaseFileId ? () => setEditingCaseFileId(null) : undefined} submitLabel={editingCaseFile ? 'Save case file' : 'Create case file'} />
+          <MutationState isError={createMutation.isError || updateMutation.isError || deleteMutation.isError || workflowMutation.isError} isSuccess={createMutation.isSuccess || updateMutation.isSuccess || deleteMutation.isSuccess || workflowMutation.isSuccess} />
+        </form>
+      </Panel>
+      <Panel icon={<ClipboardList size={20} />} title="Case Notes">
+        {caseFileDetail.data ? (
+          <div className="space-y-4">
+            <RecordList
+              items={caseFileDetail.data.notes ?? []}
+              label="case notes"
+              render={(note) => (
+                <div className="space-y-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span>
+                      <StatusBadge status={note.visibility} /> {note.user?.email ?? 'system'} - {formatDate(note.created_at)}
+                    </span>
+                    <span className="flex gap-2">
+                      <SmallButton onClick={() => setEditingCaseNote(note)}>Edit</SmallButton>
+                      <SmallButton danger onClick={() => selectedCaseFileId && window.confirm('Delete this note?') && deleteNoteMutation.mutate({ caseFileId: selectedCaseFileId, noteId: note.id })}>
+                        Delete
+                      </SmallButton>
+                    </span>
+                  </div>
+                  <p className="text-[#52645e]">{note.note}</p>
+                </div>
+              )}
+            />
+            <form className="space-y-4" key={editingCaseNote?.id ?? `note-${selectedCaseFileId}`} onSubmit={handleCaseNoteSubmit}>
+              <SelectField defaultValue={editingCaseNote?.visibility ?? 'internal'} label="Visibility" name="note_visibility" options={['internal', 'private', 'public']} />
+              <TextAreaField defaultValue={editingCaseNote?.note ?? ''} label="Note" name="case_note" required />
+              <FormFooter isPending={createNoteMutation.isPending || updateNoteMutation.isPending} onCancel={editingCaseNote ? () => setEditingCaseNote(null) : undefined} submitLabel={editingCaseNote ? 'Save note' : 'Add note'} />
+              <MutationState isError={createNoteMutation.isError || updateNoteMutation.isError || deleteNoteMutation.isError} isSuccess={createNoteMutation.isSuccess || updateNoteMutation.isSuccess || deleteNoteMutation.isSuccess} />
+            </form>
+          </div>
+        ) : (
+          <EmptyState title="Select a case file" />
+        )}
+      </Panel>
+      <Panel icon={<FileText size={20} />} title="Case Documents">
+        {caseFileDetail.data ? (
+          <div className="space-y-4">
+            <RecordList
+              items={caseFileDetail.data.documents ?? []}
+              label="case documents"
+              render={(caseDocument) => (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span>
+                    <StatusBadge status={caseDocument.status} /> {caseDocument.document_type} - {caseDocument.original_filename} - {formatFileSize(caseDocument.size)}
+                  </span>
+                  <span className="flex flex-wrap gap-2">
+                    <SmallButton onClick={() => selectedCaseFileId && downloadDocumentMutation.mutate({ caseDocument, caseFileId: selectedCaseFileId })}>Download</SmallButton>
+                    <SmallButton danger onClick={() => selectedCaseFileId && window.confirm(`Delete ${caseDocument.original_filename}?`) && deleteDocumentMutation.mutate({ caseFileId: selectedCaseFileId, documentId: caseDocument.id })}>
+                      Delete
+                    </SmallButton>
+                  </span>
+                </div>
+              )}
+            />
+            <form className="space-y-4" onSubmit={handleDocumentUpload}>
+              <FormGrid>
+                <SelectField defaultValue="assessment" label="Document type" name="document_type" options={['identity', 'proof_of_address', 'medical_report', 'income_proof', 'assessment', 'consent', 'other']} />
+                <label className="block text-sm">
+                  <span className="mb-1 block font-medium text-[#29483d]">File</span>
+                  <input className="w-full rounded-md border border-[#c8d4cf] bg-white px-3 py-2 text-sm text-[#10201a]" name="file" required type="file" />
+                </label>
+              </FormGrid>
+              <FormFooter isPending={uploadDocumentMutation.isPending} submitLabel="Upload document" />
+              <MutationState isError={uploadDocumentMutation.isError || deleteDocumentMutation.isError || downloadDocumentMutation.isError} isSuccess={uploadDocumentMutation.isSuccess || deleteDocumentMutation.isSuccess} />
+            </form>
+          </div>
+        ) : (
+          <EmptyState title="Select a case file" />
+        )}
       </Panel>
     </ModulePage>
   )
@@ -1397,13 +2050,14 @@ function SelectField({
   name,
   optionLabels,
   options,
+  ...props
 }: {
   defaultValue?: string
   label: string
   name: string
   optionLabels?: Record<string, string>
   options: string[]
-}) {
+} & Omit<SelectHTMLAttributes<HTMLSelectElement>, 'className' | 'defaultValue' | 'name'>) {
   return (
     <label className="block text-sm">
       <span className="mb-1 block font-medium text-[#29483d]">{label}</span>
@@ -1411,6 +2065,7 @@ function SelectField({
         className="w-full rounded-md border border-[#c8d4cf] bg-white px-3 py-2 text-sm text-[#10201a] outline-none transition focus:border-[#236b55] focus:ring-2 focus:ring-[#236b55]/15"
         defaultValue={defaultValue}
         name={name}
+        {...props}
       >
         {options.map((option) => (
           <option key={option} value={option}>
@@ -1638,6 +2293,18 @@ function statusClass(status: string) {
 
 function formatDate(value: string) {
   return new Date(value).toLocaleString()
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024) {
+    return `${bytes} B`
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(bytes / 1024).toFixed(1)} KB`
+  }
+
+  return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
 const router = createBrowserRouter([

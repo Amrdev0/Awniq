@@ -84,8 +84,9 @@ Checklist:
 - [x] Add route map for all operational modules.
 - [x] Expand identity frontend API clients with write operations.
 - [x] Implement organization, branches, users, roles, permissions, and audit log screens.
+- [x] Expand beneficiary and case frontend API clients with write operations.
+- [x] Implement beneficiary, family member, case file, note, and document screens.
 - [ ] Expand remaining frontend API clients with write operations.
-- [ ] Implement beneficiary, family member, case file, note, and document screens.
 - [ ] Implement donor, campaign, donation, allocation, payment transaction, and receipt screens.
 - [ ] Implement warehouse, inventory item, stock lot, stock movement, low-stock, and expiring-stock screens.
 - [ ] Implement aid batch, distribution, item, stock-check, delivery, failure, reschedule, and proof screens.

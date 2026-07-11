@@ -15,12 +15,13 @@ export class ApiError extends Error {
 
 export async function apiRequest<T>(path: string, init: RequestInit = {}): Promise<T> {
   const token = getStoredToken()
+  const isFormData = init.body instanceof FormData
 
   const response = await fetch(`${appConfig.apiBaseUrl}${path}`, {
     ...init,
     headers: {
       Accept: 'application/json',
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(token ? { Authorization: `Bearer ${token}` } : {}),
       ...init.headers,
     },
@@ -33,4 +34,25 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}): Promi
   }
 
   return payload as T
+}
+
+export async function apiBlobRequest(path: string, init: RequestInit = {}): Promise<Blob> {
+  const token = getStoredToken()
+
+  const response = await fetch(`${appConfig.apiBaseUrl}${path}`, {
+    ...init,
+    headers: {
+      Accept: '*/*',
+      ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      ...init.headers,
+    },
+  })
+
+  if (!response.ok) {
+    const payload: unknown = await response.json().catch(() => null)
+
+    throw new ApiError('API request failed', response.status, payload)
+  }
+
+  return response.blob()
 }
