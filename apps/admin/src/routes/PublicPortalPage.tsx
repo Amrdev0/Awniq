@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import type { FormEvent, ReactNode } from 'react'
-import { Link, useParams } from 'react-router'
+import { Link, useParams, useSearchParams } from 'react-router'
 import { useMutation, useQuery } from '@tanstack/react-query'
 import { ArrowLeft, ArrowRight, BarChart3, Globe2, HeartHandshake, Mail, Phone } from 'lucide-react'
 import { EmptyState } from '../components/ui/EmptyState'
@@ -9,7 +9,7 @@ import { ApiError } from '../services/api/apiClient'
 import {
   createPublicDonationIntent,
   getPublicCampaign,
-  getPublicCampaigns,
+  getPublicCampaignsPage,
   getPublicOrganization,
   getPublicStats,
   type PublicCampaign,
@@ -18,8 +18,10 @@ import {
 } from '../services/api/publicPortal'
 
 export function PublicPortalPage() {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const page = Math.max(Number(searchParams.get('page') ?? 1) || 1, 1)
   const organization = useQuery({ queryKey: ['public-organization'], queryFn: getPublicOrganization, retry: false })
-  const campaigns = useQuery({ queryKey: ['public-campaigns'], queryFn: getPublicCampaigns, enabled: Boolean(organization.data), retry: false })
+  const campaigns = useQuery({ queryKey: ['public-campaigns', page], queryFn: () => getPublicCampaignsPage({ page, per_page: 12 }), enabled: Boolean(organization.data), retry: false })
   const stats = useQuery({ queryKey: ['public-stats'], queryFn: getPublicStats, enabled: Boolean(organization.data), retry: false })
 
   if (organization.isPending) {
@@ -74,14 +76,15 @@ export function PublicPortalPage() {
           <section>
             <SectionHeading eyebrow="Campaigns" title="Public Campaigns" />
             {campaigns.data ? (
-              <CampaignGrid campaigns={campaigns.data} />
+              <CampaignGrid campaigns={campaigns.data.data} />
             ) : (
               <LoadingOrEmpty isLoading={campaigns.isPending} label="Loading public campaigns" />
             )}
+            {campaigns.data?.meta.total ? <div className="mt-5 flex items-center justify-between gap-3 text-sm"><span>{campaigns.data.meta.from}-{campaigns.data.meta.to} of {campaigns.data.meta.total}</span><div className="flex gap-2"><button className="rounded-md border border-[#c8d4cf] bg-white px-3 py-2 disabled:opacity-40" disabled={page <= 1} onClick={() => setSearchParams({ page: String(page - 1) })} type="button">Previous</button><span className="px-2 py-2">Page {page} of {campaigns.data.meta.last_page}</span><button className="rounded-md border border-[#c8d4cf] bg-white px-3 py-2 disabled:opacity-40" disabled={page >= campaigns.data.meta.last_page} onClick={() => setSearchParams({ page: String(page + 1) })} type="button">Next</button></div></div> : null}
           </section>
 
           <section className="grid gap-6 lg:grid-cols-[0.8fr_1.2fr]">
-            <DonationPanel organization={organization.data} campaigns={campaigns.data ?? []} />
+            <DonationPanel organization={organization.data} campaigns={campaigns.data?.data ?? []} />
             <ContactPanel organization={organization.data} />
           </section>
         </div>

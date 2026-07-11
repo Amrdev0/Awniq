@@ -20,6 +20,7 @@ class CaseNoteController extends Controller
 
         $notes = $caseFile->notes()
             ->with('user')
+            ->when(request('search'), fn ($query, string $search) => $query->where('note', 'like', "%{$search}%"))
             ->latest()
             ->paginate(request()->integer('per_page', 15));
 

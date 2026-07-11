@@ -22,6 +22,9 @@ class CaseDocumentController extends Controller
 
         $documents = $caseFile->documents()
             ->with('uploader')
+            ->when(request('search'), fn ($query, string $search) => $query->where(function ($query) use ($search): void {
+                $query->where('original_filename', 'like', "%{$search}%")->orWhere('document_type', 'like', "%{$search}%");
+            }))
             ->latest()
             ->paginate(request()->integer('per_page', 15));
 

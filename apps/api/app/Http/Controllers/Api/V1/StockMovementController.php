@@ -26,6 +26,12 @@ class StockMovementController extends Controller
             ->when($request->query('movement_type'), fn ($query, string $movementType) => $query->where('movement_type', $movementType))
             ->when($request->query('date_from'), fn ($query, string $date) => $query->whereDate('created_at', '>=', $date))
             ->when($request->query('date_to'), fn ($query, string $date) => $query->whereDate('created_at', '<=', $date))
+            ->when($request->query('search'), fn ($query, string $search) => $query->where(function ($query) use ($search): void {
+                $query->where('movement_type', 'like', "%{$search}%")
+                    ->orWhere('notes', 'like', "%{$search}%")
+                    ->orWhereHas('warehouse', fn ($warehouseQuery) => $warehouseQuery->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))
+                    ->orWhereHas('inventoryItem', fn ($itemQuery) => $itemQuery->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%"));
+            }))
             ->latest()
             ->paginate($request->integer('per_page', 15));
 

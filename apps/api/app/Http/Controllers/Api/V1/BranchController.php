@@ -18,6 +18,9 @@ class BranchController extends Controller
         $branches = Branch::query()
             ->with('manager')
             ->where('organization_id', request()->user()->organization_id)
+            ->when(request('search'), fn ($query, string $search) => $query->where(function ($query) use ($search): void {
+                $query->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%")->orWhere('city', 'like', "%{$search}%");
+            }))
             ->latest()
             ->paginate(request()->integer('per_page', 15));
 

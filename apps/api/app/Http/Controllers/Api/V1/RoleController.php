@@ -15,7 +15,11 @@ class RoleController extends Controller
 {
     public function index(): AnonymousResourceCollection
     {
-        return RoleResource::collection(Role::query()->with('permissions')->orderBy('name')->paginate(request()->integer('per_page', 50)));
+        return RoleResource::collection(Role::query()
+            ->with('permissions')
+            ->when(request('search'), fn ($query, string $search) => $query->where('name', 'like', "%{$search}%"))
+            ->orderBy('name')
+            ->paginate(request()->integer('per_page', 50)));
     }
 
     public function store(RoleRequest $request, AuditLogService $auditLogService): RoleResource

@@ -86,6 +86,7 @@ class DonorController extends Controller
 
         $donations = $donor->donations()
             ->with(['campaign', 'allocations', 'receipt'])
+            ->when(request('search'), fn ($query, string $search) => $query->where('donation_number', 'like', "%{$search}%"))
             ->latest()
             ->paginate(request()->integer('per_page', 15));
 

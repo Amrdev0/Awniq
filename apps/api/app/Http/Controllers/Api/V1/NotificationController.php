@@ -19,6 +19,9 @@ class NotificationController extends Controller
             ->when($request->boolean('unread'), fn ($query) => $query->unread())
             ->when($request->query('category'), fn ($query, string $category) => $query->where('category', $category))
             ->when($request->query('severity'), fn ($query, string $severity) => $query->where('severity', $severity))
+            ->when($request->query('search'), fn ($query, string $search) => $query->where(function ($query) use ($search): void {
+                $query->where('title', 'like', "%{$search}%")->orWhere('body', 'like', "%{$search}%")->orWhere('category', 'like', "%{$search}%");
+            }))
             ->latest()
             ->paginate($request->integer('per_page', 15));
 

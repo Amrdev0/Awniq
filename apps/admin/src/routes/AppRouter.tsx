@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import type { ComponentType, FormEvent, InputHTMLAttributes, ReactNode, SelectHTMLAttributes, TextareaHTMLAttributes } from 'react'
-import { createBrowserRouter, Navigate, NavLink, Outlet, RouterProvider, useLocation } from 'react-router'
+import { createBrowserRouter, Navigate, NavLink, Outlet, RouterProvider, useLocation, useOutletContext, useSearchParams } from 'react-router'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Bell,
@@ -27,10 +27,34 @@ import {
   Warehouse,
 } from 'lucide-react'
 import { clearStoredToken, getStoredToken, storeToken } from '../app/auth'
+import { canAccessAny } from '../app/permissions'
 import { EmptyState } from '../components/ui/EmptyState'
 import { LoadingState } from '../components/ui/LoadingState'
 import { UnauthorizedState } from '../components/ui/UnauthorizedState'
-import { getAidBatches } from '../services/api/aid'
+import {
+  createAidBatch,
+  createAidDistribution,
+  createDistributionItem,
+  deleteAidBatch,
+  deleteAidDistribution,
+  deleteDistributionItem,
+  getAidBatch,
+  getAidBatchDistributionsPage,
+  getAidBatches,
+  getAidBatchesPage,
+  getAidBatchStockCheck,
+  getAidDistribution,
+  getDistributionItemsPage,
+  getEligibleBeneficiariesPage,
+  markDistributionFailed,
+  rescheduleDistribution,
+  runAidBatchAction,
+  submitDistributionProof,
+  updateAidBatch,
+  type AidBatch,
+  type AidBatchInput,
+  type AidDistribution,
+} from '../services/api/aid'
 import { getMe, login, logout, type CurrentUser } from '../services/api/auth'
 import {
   approveBeneficiary,
@@ -47,9 +71,14 @@ import {
   deleteFamilyMember,
   downloadCaseDocument,
   getBeneficiaries,
+  getBeneficiariesPage,
   getBeneficiary,
+  getBeneficiaryFamilyMembersPage,
   getCaseFile,
+  getCaseDocumentsPage,
   getCaseFiles,
+  getCaseFilesPage,
+  getCaseNotesPage,
   reactivateBeneficiary,
   rejectBeneficiary,
   rejectCaseFile,
@@ -86,11 +115,15 @@ import {
   generateDonationReceipt,
   getCampaign,
   getCampaigns,
+  getCampaignsPage,
   getDonation,
-  getDonationPaymentTransactions,
-  getDonations,
+  getDonationAllocationsPage,
+  getDonationPaymentTransactionsPage,
+  getDonationsPage,
   getDonor,
+  getDonorDonationsPage,
   getDonors,
+  getDonorsPage,
   getPaymentTransaction,
   pauseCampaign,
   updateCampaign,
@@ -116,12 +149,15 @@ import {
   deleteRole,
   disableUser,
   enableUser,
-  getAuditLogs,
+  getAuditLogsPage,
   getBranches,
+  getBranchesPage,
   getOrganization,
   getPermissions,
   getRoles,
+  getRolesPage,
   getUsers,
+  getUsersPage,
   syncUserRoles,
   updateBranch,
   updateOrganization,
@@ -134,25 +170,44 @@ import {
   type User,
 } from '../services/api/identity'
 import {
-  getExpiringStock,
+  adjustStock,
+  createInventoryItem,
+  createWarehouse,
+  deleteInventoryItem,
+  deleteWarehouse,
+  getExpiringStockPage,
   getInventoryItems,
-  getLowStock,
+  getInventoryItemsPage,
+  getLowStockPage,
   getStockLots,
-  getStockMovements,
-  getStockSummary,
+  getStockLotsPage,
+  getStockMovementsPage,
+  getStockSummaryPage,
   getWarehouses,
+  getWarehousesPage,
+  receiveStock,
+  updateInventoryItem,
+  updateWarehouse,
+  type InventoryItem,
+  type InventoryItemInput,
+  type Warehouse as WarehouseRecord,
+  type WarehouseInput,
 } from '../services/api/inventory'
 import {
   getNotificationPreferences,
   getNotifications,
+  getNotificationsPage,
   getQueueHealth,
   getScheduledJobs,
   getUnreadNotificationCount,
   markAllNotificationsRead,
   markNotificationRead,
+  updateNotificationPreferences,
   type OperationalNotification,
 } from '../services/api/notifications'
-import { getDashboardReport } from '../services/api/reports'
+import { createExport, downloadExport, getDashboardReport, getExportsPage, getReport, reportTypes, type ReportType } from '../services/api/reports'
+import { getPublicPortalSettings, updatePublicPortalSettings } from '../services/api/publicPortal'
+import { readPagination, type PaginationMeta, type PaginationParams } from '../services/api/pagination'
 import { PublicCampaignDetailsPage, PublicPortalPage } from './PublicPortalPage'
 
 type NavItem = {
@@ -362,9 +417,9 @@ function AdminShell({ me, onLogout }: { me: CurrentUser; onLogout: () => void })
   })
 
   return (
-    <main className="min-h-svh bg-[#f6f8f7] text-[#172026]">
-      <div className="flex min-h-svh">
-        <aside className="hidden w-72 shrink-0 border-r border-[#d9e1de] bg-white lg:block">
+    <main className="h-svh overflow-hidden bg-[#f6f8f7] text-[#172026]">
+      <div className="flex h-full min-h-0">
+        <aside className="hidden h-full w-72 shrink-0 overflow-hidden border-r border-[#d9e1de] bg-white lg:block">
           <SidebarNav groups={visibleGroups} onNavigate={() => undefined} />
         </aside>
 
@@ -377,7 +432,7 @@ function AdminShell({ me, onLogout }: { me: CurrentUser; onLogout: () => void })
           </div>
         ) : null}
 
-        <section className="min-w-0 flex-1">
+        <section className="h-full min-w-0 flex-1 overflow-y-auto overscroll-contain">
           <header className="sticky top-0 z-20 border-b border-[#d9e1de] bg-[#f6f8f7]/95 px-4 py-4 backdrop-blur md:px-6">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="flex min-w-0 items-center gap-3">
@@ -423,7 +478,7 @@ function AdminShell({ me, onLogout }: { me: CurrentUser; onLogout: () => void })
           </header>
 
           <div className="px-4 py-6 md:px-6">
-            <Outlet />
+            <Outlet context={{ me }} />
           </div>
         </section>
       </div>
@@ -433,7 +488,7 @@ function AdminShell({ me, onLogout }: { me: CurrentUser; onLogout: () => void })
 
 function SidebarNav({ groups, onNavigate }: { groups: NavGroup[]; onNavigate: () => void }) {
   return (
-    <nav className="flex h-full flex-col overflow-y-auto px-4 py-5">
+    <nav className="flex h-full min-h-0 flex-col overflow-y-auto overscroll-contain px-4 py-5">
       <div className="mb-6 border-b border-[#edf1ef] pb-4">
         <p className="text-sm font-medium uppercase tracking-wide text-[#4b635b]">Awniq</p>
         <p className="mt-1 text-lg font-semibold text-[#10201a]">Control System</p>
@@ -587,8 +642,9 @@ function OrganizationPage() {
 
 function BranchesPage() {
   const queryClient = useQueryClient()
+  const pagination = useListPagination()
   const [editingBranch, setEditingBranch] = useState<Branch | null>(null)
-  const branches = useQuery({ queryKey: ['branches'], queryFn: getBranches })
+  const branches = useQuery({ queryKey: ['branches', pagination.params], queryFn: () => getBranchesPage(pagination.params) })
   const users = useQuery({ queryKey: ['users'], queryFn: getUsers })
   const createMutation = useMutation({
     mutationFn: createBranch,
@@ -640,7 +696,7 @@ function BranchesPage() {
         <RecordList
           isError={branches.isError}
           isLoading={branches.isPending}
-          items={branches.data}
+          items={branches.data?.data}
           label="branches"
           render={(branch) => (
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -656,6 +712,7 @@ function BranchesPage() {
             </div>
           )}
         />
+        <PaginationControls meta={branches.data?.meta} pagination={pagination} />
       </Panel>
       <Panel icon={<FileText size={20} />} title="Branch Detail">
         {editingBranch ? (
@@ -704,8 +761,9 @@ function BranchesPage() {
 
 function UsersPage() {
   const queryClient = useQueryClient()
+  const pagination = useListPagination()
   const [editingUser, setEditingUser] = useState<User | null>(null)
-  const users = useQuery({ queryKey: ['users'], queryFn: getUsers })
+  const users = useQuery({ queryKey: ['users', pagination.params], queryFn: () => getUsersPage(pagination.params) })
   const branches = useQuery({ queryKey: ['branches'], queryFn: getBranches })
   const roles = useQuery({ queryKey: ['roles'], queryFn: getRoles })
   const createMutation = useMutation({
@@ -762,7 +820,7 @@ function UsersPage() {
         <RecordList
           isError={users.isError}
           isLoading={users.isPending}
-          items={users.data}
+          items={users.data?.data}
           label="users"
           render={(user) => (
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -776,6 +834,7 @@ function UsersPage() {
             </div>
           )}
         />
+        <PaginationControls meta={users.data?.meta} pagination={pagination} />
       </Panel>
       <Panel icon={<FileText size={20} />} title="User Detail">
         {editingUser ? (
@@ -835,8 +894,9 @@ function UsersPage() {
 
 function RolesPage() {
   const queryClient = useQueryClient()
+  const pagination = useListPagination()
   const [editingRole, setEditingRole] = useState<Role | null>(null)
-  const roles = useQuery({ queryKey: ['roles'], queryFn: getRoles })
+  const roles = useQuery({ queryKey: ['roles', pagination.params], queryFn: () => getRolesPage(pagination.params) })
   const permissions = useQuery({ queryKey: ['permissions'], queryFn: getPermissions })
   const createMutation = useMutation({
     mutationFn: createRole,
@@ -881,7 +941,7 @@ function RolesPage() {
         <RecordList
           isError={roles.isError}
           isLoading={roles.isPending}
-          items={roles.data}
+          items={roles.data?.data}
           label="roles"
           render={(role) => (
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -899,6 +959,7 @@ function RolesPage() {
             </div>
           )}
         />
+        <PaginationControls meta={roles.data?.meta} pagination={pagination} />
       </Panel>
       <Panel icon={<FileText size={20} />} title="Role Detail">
         {editingRole ? (
@@ -929,8 +990,9 @@ function RolesPage() {
 }
 
 function AuditLogsPage() {
+  const pagination = useListPagination()
   const [selectedLog, setSelectedLog] = useState<AuditLog | null>(null)
-  const auditLogs = useQuery({ queryKey: ['audit-logs'], queryFn: getAuditLogs })
+  const auditLogs = useQuery({ queryKey: ['audit-logs', pagination.params], queryFn: () => getAuditLogsPage(pagination.params) })
 
   return (
     <ModulePage description="Inspect audited state changes and sensitive operations." title="Audit Logs" planned={['Add filters by date/action/user/entity.']}>
@@ -938,7 +1000,7 @@ function AuditLogsPage() {
         <RecordList
           isError={auditLogs.isError}
           isLoading={auditLogs.isPending}
-          items={auditLogs.data}
+          items={auditLogs.data?.data}
           label="audit logs"
           render={(log) => (
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -949,6 +1011,7 @@ function AuditLogsPage() {
             </div>
           )}
         />
+        <PaginationControls meta={auditLogs.data?.meta} pagination={pagination} />
       </Panel>
       <Panel icon={<FileText size={20} />} title="Audit Detail">
         {selectedLog ? (
@@ -975,17 +1038,24 @@ function AuditLogsPage() {
 
 function BeneficiariesPage() {
   const queryClient = useQueryClient()
+  const pagination = useListPagination()
+  const familyPagination = useListPagination('family_')
   const [selectedBeneficiaryId, setSelectedBeneficiaryId] = useState<number | null>(null)
   const [editingBeneficiaryId, setEditingBeneficiaryId] = useState<number | null>(null)
   const [editingFamilyMember, setEditingFamilyMember] = useState<FamilyMember | null>(null)
-  const beneficiaries = useQuery({ queryKey: ['beneficiaries'], queryFn: getBeneficiaries })
+  const beneficiaries = useQuery({ queryKey: ['beneficiaries', pagination.params], queryFn: () => getBeneficiariesPage(pagination.params) })
   const branches = useQuery({ queryKey: ['branches'], queryFn: getBranches })
   const beneficiaryDetail = useQuery({
     queryKey: ['beneficiary', selectedBeneficiaryId],
     queryFn: () => getBeneficiary(selectedBeneficiaryId as number),
     enabled: selectedBeneficiaryId !== null,
   })
-  const editingBeneficiary = editingBeneficiaryId ? beneficiaryDetail.data ?? beneficiaries.data?.find((beneficiary) => beneficiary.id === editingBeneficiaryId) ?? null : null
+  const familyMembers = useQuery({
+    queryKey: ['beneficiary-family-members', selectedBeneficiaryId, familyPagination.params],
+    queryFn: () => getBeneficiaryFamilyMembersPage(selectedBeneficiaryId as number, familyPagination.params),
+    enabled: selectedBeneficiaryId !== null,
+  })
+  const editingBeneficiary = editingBeneficiaryId ? beneficiaryDetail.data ?? beneficiaries.data?.data.find((beneficiary) => beneficiary.id === editingBeneficiaryId) ?? null : null
 
   useEffect(() => {
     setEditingFamilyMember(null)
@@ -996,6 +1066,7 @@ function BeneficiariesPage() {
 
     if (id) {
       void queryClient.invalidateQueries({ queryKey: ['beneficiary', id] })
+      void queryClient.invalidateQueries({ queryKey: ['beneficiary-family-members', id] })
     }
   }
 
@@ -1144,7 +1215,7 @@ function BeneficiariesPage() {
         <RecordList
           isError={beneficiaries.isError}
           isLoading={beneficiaries.isPending}
-          items={beneficiaries.data}
+          items={beneficiaries.data?.data}
           label="beneficiaries"
           render={(beneficiary) => (
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1168,6 +1239,7 @@ function BeneficiariesPage() {
             </div>
           )}
         />
+        <PaginationControls meta={beneficiaries.data?.meta} pagination={pagination} />
       </Panel>
       <Panel icon={<FileText size={20} />} title="Beneficiary Detail">
         {selectedBeneficiaryId ? (
@@ -1239,7 +1311,9 @@ function BeneficiariesPage() {
         {beneficiaryDetail.data ? (
           <div className="space-y-4">
             <RecordList
-              items={beneficiaryDetail.data.family_members ?? []}
+              isError={familyMembers.isError}
+              isLoading={familyMembers.isPending}
+              items={familyMembers.data?.data}
               label="family members"
               render={(familyMember) => (
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1255,6 +1329,7 @@ function BeneficiariesPage() {
                 </div>
               )}
             />
+            <PaginationControls meta={familyMembers.data?.meta} pagination={familyPagination} />
             <form className="space-y-4" key={editingFamilyMember?.id ?? `family-${selectedBeneficiaryId}`} onSubmit={handleFamilyMemberSubmit}>
               <FormGrid>
                 <TextField defaultValue={editingFamilyMember?.full_name ?? ''} label="Full name" name="family_full_name" required />
@@ -1280,10 +1355,13 @@ function BeneficiariesPage() {
 
 function CaseFilesPage() {
   const queryClient = useQueryClient()
+  const pagination = useListPagination()
+  const notesPagination = useListPagination('notes_')
+  const documentsPagination = useListPagination('documents_')
   const [selectedCaseFileId, setSelectedCaseFileId] = useState<number | null>(null)
   const [editingCaseFileId, setEditingCaseFileId] = useState<number | null>(null)
   const [editingCaseNote, setEditingCaseNote] = useState<CaseNote | null>(null)
-  const caseFiles = useQuery({ queryKey: ['case-files'], queryFn: getCaseFiles })
+  const caseFiles = useQuery({ queryKey: ['case-files', pagination.params], queryFn: () => getCaseFilesPage(pagination.params) })
   const beneficiaries = useQuery({ queryKey: ['beneficiaries'], queryFn: getBeneficiaries })
   const users = useQuery({ queryKey: ['users'], queryFn: getUsers })
   const caseFileDetail = useQuery({
@@ -1291,7 +1369,9 @@ function CaseFilesPage() {
     queryFn: () => getCaseFile(selectedCaseFileId as number),
     enabled: selectedCaseFileId !== null,
   })
-  const editingCaseFile = editingCaseFileId ? caseFileDetail.data ?? caseFiles.data?.find((caseFile) => caseFile.id === editingCaseFileId) ?? null : null
+  const caseNotes = useQuery({ queryKey: ['case-notes', selectedCaseFileId, notesPagination.params], queryFn: () => getCaseNotesPage(selectedCaseFileId as number, notesPagination.params), enabled: selectedCaseFileId !== null })
+  const caseDocuments = useQuery({ queryKey: ['case-documents', selectedCaseFileId, documentsPagination.params], queryFn: () => getCaseDocumentsPage(selectedCaseFileId as number, documentsPagination.params), enabled: selectedCaseFileId !== null })
+  const editingCaseFile = editingCaseFileId ? caseFileDetail.data ?? caseFiles.data?.data.find((caseFile) => caseFile.id === editingCaseFileId) ?? null : null
 
   useEffect(() => {
     setEditingCaseNote(null)
@@ -1303,6 +1383,8 @@ function CaseFilesPage() {
 
     if (id) {
       void queryClient.invalidateQueries({ queryKey: ['case-file', id] })
+      void queryClient.invalidateQueries({ queryKey: ['case-notes', id] })
+      void queryClient.invalidateQueries({ queryKey: ['case-documents', id] })
     }
   }
 
@@ -1470,7 +1552,7 @@ function CaseFilesPage() {
         <RecordList
           isError={caseFiles.isError}
           isLoading={caseFiles.isPending}
-          items={caseFiles.data}
+          items={caseFiles.data?.data}
           label="case files"
           render={(caseFile) => (
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1494,6 +1576,7 @@ function CaseFilesPage() {
             </div>
           )}
         />
+        <PaginationControls meta={caseFiles.data?.meta} pagination={pagination} />
       </Panel>
       <Panel icon={<FileText size={20} />} title="Case Detail">
         {selectedCaseFileId ? (
@@ -1563,7 +1646,9 @@ function CaseFilesPage() {
         {caseFileDetail.data ? (
           <div className="space-y-4">
             <RecordList
-              items={caseFileDetail.data.notes ?? []}
+              isError={caseNotes.isError}
+              isLoading={caseNotes.isPending}
+              items={caseNotes.data?.data}
               label="case notes"
               render={(note) => (
                 <div className="space-y-2">
@@ -1582,6 +1667,7 @@ function CaseFilesPage() {
                 </div>
               )}
             />
+            <PaginationControls meta={caseNotes.data?.meta} pagination={notesPagination} />
             <form className="space-y-4" key={editingCaseNote?.id ?? `note-${selectedCaseFileId}`} onSubmit={handleCaseNoteSubmit}>
               <SelectField defaultValue={editingCaseNote?.visibility ?? 'internal'} label="Visibility" name="note_visibility" options={['internal', 'private', 'public']} />
               <TextAreaField defaultValue={editingCaseNote?.note ?? ''} label="Note" name="case_note" required />
@@ -1597,7 +1683,9 @@ function CaseFilesPage() {
         {caseFileDetail.data ? (
           <div className="space-y-4">
             <RecordList
-              items={caseFileDetail.data.documents ?? []}
+              isError={caseDocuments.isError}
+              isLoading={caseDocuments.isPending}
+              items={caseDocuments.data?.data}
               label="case documents"
               render={(caseDocument) => (
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1613,6 +1701,7 @@ function CaseFilesPage() {
                 </div>
               )}
             />
+            <PaginationControls meta={caseDocuments.data?.meta} pagination={documentsPagination} />
             <form className="space-y-4" onSubmit={handleDocumentUpload}>
               <FormGrid>
                 <SelectField defaultValue="assessment" label="Document type" name="document_type" options={['identity', 'proof_of_address', 'medical_report', 'income_proof', 'assessment', 'consent', 'other']} />
@@ -1635,15 +1724,18 @@ function CaseFilesPage() {
 
 function DonorsPage() {
   const queryClient = useQueryClient()
+  const pagination = useListPagination()
+  const donationsPagination = useListPagination('donor_donations_')
   const [selectedDonorId, setSelectedDonorId] = useState<number | null>(null)
   const [editingDonorId, setEditingDonorId] = useState<number | null>(null)
-  const donors = useQuery({ queryKey: ['donors'], queryFn: getDonors })
+  const donors = useQuery({ queryKey: ['donors', pagination.params], queryFn: () => getDonorsPage(pagination.params) })
   const donorDetail = useQuery({
     queryKey: ['donor', selectedDonorId],
     queryFn: () => getDonor(selectedDonorId as number),
     enabled: selectedDonorId !== null,
   })
-  const editingDonor = editingDonorId ? donorDetail.data ?? donors.data?.find((donor) => donor.id === editingDonorId) ?? null : null
+  const donorDonations = useQuery({ queryKey: ['donor-donations', selectedDonorId, donationsPagination.params], queryFn: () => getDonorDonationsPage(selectedDonorId as number, donationsPagination.params), enabled: selectedDonorId !== null })
+  const editingDonor = editingDonorId ? donorDetail.data ?? donors.data?.data.find((donor) => donor.id === editingDonorId) ?? null : null
 
   function refreshDonors(id?: number | null) {
     void queryClient.invalidateQueries({ queryKey: ['donors'] })
@@ -1716,7 +1808,7 @@ function DonorsPage() {
         <RecordList
           isError={donors.isError}
           isLoading={donors.isPending}
-          items={donors.data}
+          items={donors.data?.data}
           label="donors"
           render={(donor) => (
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1740,6 +1832,7 @@ function DonorsPage() {
             </div>
           )}
         />
+        <PaginationControls meta={donors.data?.meta} pagination={pagination} />
       </Panel>
       <Panel icon={<FileText size={20} />} title="Donor Detail">
         {selectedDonorId ? (
@@ -1758,7 +1851,8 @@ function DonorsPage() {
                 ]}
               />
               <p className="text-sm leading-6 text-[#52645e]">{donorDetail.data.notes ?? 'No donor notes.'}</p>
-              <RecordList items={donorDetail.data.donations ?? []} label="donor donations" render={(donation) => `${donation.donation_number} - ${formatMoney(donation.amount, donation.currency)} - ${donation.payment_status}`} />
+              <RecordList isError={donorDonations.isError} isLoading={donorDonations.isPending} items={donorDonations.data?.data} label="donor donations" render={(donation) => `${donation.donation_number} - ${formatMoney(donation.amount, donation.currency)} - ${donation.payment_status}`} />
+              <PaginationControls meta={donorDonations.data?.meta} pagination={donationsPagination} />
             </div>
           ) : (
             <LoadingOrEmpty isError={donorDetail.isError} isLoading={donorDetail.isPending} label="Loading donor" />
@@ -1792,15 +1886,18 @@ function DonorsPage() {
 
 function CampaignsPage() {
   const queryClient = useQueryClient()
+  const pagination = useListPagination()
+  const donationsPagination = useListPagination('campaign_donations_')
   const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null)
   const [editingCampaignId, setEditingCampaignId] = useState<number | null>(null)
-  const campaigns = useQuery({ queryKey: ['campaigns'], queryFn: getCampaigns })
+  const campaigns = useQuery({ queryKey: ['campaigns', pagination.params], queryFn: () => getCampaignsPage(pagination.params) })
   const campaignDetail = useQuery({
     queryKey: ['campaign', selectedCampaignId],
     queryFn: () => getCampaign(selectedCampaignId as number),
     enabled: selectedCampaignId !== null,
   })
-  const editingCampaign = editingCampaignId ? campaignDetail.data ?? campaigns.data?.find((campaign) => campaign.id === editingCampaignId) ?? null : null
+  const campaignDonations = useQuery({ queryKey: ['campaign-donations', selectedCampaignId, donationsPagination.params], queryFn: () => getDonationsPage({ ...donationsPagination.params, campaign_id: selectedCampaignId }), enabled: selectedCampaignId !== null })
+  const editingCampaign = editingCampaignId ? campaignDetail.data ?? campaigns.data?.data.find((campaign) => campaign.id === editingCampaignId) ?? null : null
 
   function refreshCampaigns(id?: number | null) {
     void queryClient.invalidateQueries({ queryKey: ['campaigns'] })
@@ -1889,7 +1986,7 @@ function CampaignsPage() {
         <RecordList
           isError={campaigns.isError}
           isLoading={campaigns.isPending}
-          items={campaigns.data}
+          items={campaigns.data?.data}
           label="campaigns"
           render={(campaign) => (
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -1913,6 +2010,7 @@ function CampaignsPage() {
             </div>
           )}
         />
+        <PaginationControls meta={campaigns.data?.meta} pagination={pagination} />
       </Panel>
       <Panel icon={<FileText size={20} />} title="Campaign Detail">
         {selectedCampaignId ? (
@@ -1939,7 +2037,8 @@ function CampaignsPage() {
                 {['active', 'paused'].includes(campaignDetail.data.status) ? <SmallButton onClick={() => workflowMutation.mutate({ action: 'complete', id: campaignDetail.data.id })}>Complete</SmallButton> : null}
                 {['draft', 'active', 'paused'].includes(campaignDetail.data.status) ? <SmallButton danger onClick={() => workflowMutation.mutate({ action: 'cancel', id: campaignDetail.data.id })}>Cancel</SmallButton> : null}
               </div>
-              <RecordList items={campaignDetail.data.donations ?? []} label="campaign donations" render={(donation) => `${donation.donation_number} - ${formatMoney(donation.amount, donation.currency)} - ${donation.payment_status}`} />
+              <RecordList isError={campaignDonations.isError} isLoading={campaignDonations.isPending} items={campaignDonations.data?.data} label="campaign donations" render={(donation) => `${donation.donation_number} - ${formatMoney(donation.amount, donation.currency)} - ${donation.payment_status}`} />
+              <PaginationControls meta={campaignDonations.data?.meta} pagination={donationsPagination} />
             </div>
           ) : (
             <LoadingOrEmpty isError={campaignDetail.isError} isLoading={campaignDetail.isPending} label="Loading campaign" />
@@ -1972,10 +2071,12 @@ function CampaignsPage() {
 
 function DonationsPage() {
   const queryClient = useQueryClient()
+  const pagination = useListPagination()
+  const allocationsPagination = useListPagination('allocations_')
   const [selectedDonationId, setSelectedDonationId] = useState<number | null>(null)
   const [editingDonationId, setEditingDonationId] = useState<number | null>(null)
   const [editingAllocation, setEditingAllocation] = useState<DonationAllocation | null>(null)
-  const donations = useQuery({ queryKey: ['donations'], queryFn: getDonations })
+  const donations = useQuery({ queryKey: ['donations', pagination.params], queryFn: () => getDonationsPage(pagination.params) })
   const donors = useQuery({ queryKey: ['donors'], queryFn: getDonors })
   const campaigns = useQuery({ queryKey: ['campaigns'], queryFn: getCampaigns })
   const beneficiaries = useQuery({ queryKey: ['beneficiaries'], queryFn: getBeneficiaries })
@@ -1985,7 +2086,8 @@ function DonationsPage() {
     queryFn: () => getDonation(selectedDonationId as number),
     enabled: selectedDonationId !== null,
   })
-  const editingDonation = editingDonationId ? donationDetail.data ?? donations.data?.find((donation) => donation.id === editingDonationId) ?? null : null
+  const donationAllocations = useQuery({ queryKey: ['donation-allocations', selectedDonationId, allocationsPagination.params], queryFn: () => getDonationAllocationsPage(selectedDonationId as number, allocationsPagination.params), enabled: selectedDonationId !== null })
+  const editingDonation = editingDonationId ? donationDetail.data ?? donations.data?.data.find((donation) => donation.id === editingDonationId) ?? null : null
   const donationIsLocked = editingDonation ? isDonationLocked(editingDonation) : false
   const selectedDonationIsLocked = donationDetail.data ? isDonationLocked(donationDetail.data) : false
 
@@ -2128,7 +2230,7 @@ function DonationsPage() {
         <RecordList
           isError={donations.isError}
           isLoading={donations.isPending}
-          items={donations.data}
+          items={donations.data?.data}
           label="donations"
           render={(donation) => (
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2150,6 +2252,7 @@ function DonationsPage() {
             </div>
           )}
         />
+        <PaginationControls meta={donations.data?.meta} pagination={pagination} />
       </Panel>
       <Panel icon={<Receipt size={20} />} title="Donation Detail">
         {selectedDonationId ? (
@@ -2226,7 +2329,9 @@ function DonationsPage() {
               ]}
             />
             <RecordList
-              items={donationDetail.data.allocations ?? []}
+              isError={donationAllocations.isError}
+              isLoading={donationAllocations.isPending}
+              items={donationAllocations.data?.data}
               label="donation allocations"
               render={(allocation) => (
                 <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2244,6 +2349,7 @@ function DonationsPage() {
                 </div>
               )}
             />
+            <PaginationControls meta={donationAllocations.data?.meta} pagination={allocationsPagination} />
             {!selectedDonationIsLocked ? (
               <form className="space-y-4" key={editingAllocation?.id ?? `allocation-${selectedDonationId}`} onSubmit={handleAllocationSubmit}>
                 <FormGrid>
@@ -2289,17 +2395,19 @@ function DonationsPage() {
 
 function PaymentsPage() {
   const queryClient = useQueryClient()
+  const pagination = useListPagination()
+  const transactionsPagination = useListPagination('transactions_')
   const [selectedDonationId, setSelectedDonationId] = useState<number | null>(null)
   const [selectedTransactionId, setSelectedTransactionId] = useState<number | null>(null)
-  const donations = useQuery({ queryKey: ['donations'], queryFn: getDonations })
+  const donations = useQuery({ queryKey: ['donations', pagination.params], queryFn: () => getDonationsPage(pagination.params) })
   const donationDetail = useQuery({
     queryKey: ['donation', selectedDonationId],
     queryFn: () => getDonation(selectedDonationId as number),
     enabled: selectedDonationId !== null,
   })
   const transactions = useQuery({
-    queryKey: ['donation-payment-transactions', selectedDonationId],
-    queryFn: () => getDonationPaymentTransactions(selectedDonationId as number),
+    queryKey: ['donation-payment-transactions', selectedDonationId, transactionsPagination.params],
+    queryFn: () => getDonationPaymentTransactionsPage(selectedDonationId as number, transactionsPagination.params),
     enabled: selectedDonationId !== null,
   })
   const transactionDetail = useQuery({
@@ -2321,7 +2429,7 @@ function PaymentsPage() {
         <RecordList
           isError={donations.isError}
           isLoading={donations.isPending}
-          items={donations.data}
+          items={donations.data?.data}
           label="donations"
           render={(donation) => (
             <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2339,6 +2447,7 @@ function PaymentsPage() {
             </div>
           )}
         />
+        <PaginationControls meta={donations.data?.meta} pagination={pagination} />
       </Panel>
       <Panel icon={<FileText size={20} />} title="Receipt">
         {selectedDonationId ? (
@@ -2367,10 +2476,10 @@ function PaymentsPage() {
       </Panel>
       <Panel icon={<ListChecks size={20} />} title="Payment Transactions">
         {selectedDonationId ? (
-          <RecordList
+          <><RecordList
             isError={transactions.isError}
             isLoading={transactions.isPending}
-            items={transactions.data}
+            items={transactions.data?.data}
             label="payment transactions"
             render={(transaction) => (
               <div className="flex flex-wrap items-center justify-between gap-2">
@@ -2381,6 +2490,8 @@ function PaymentsPage() {
               </div>
             )}
           />
+          <PaginationControls meta={transactions.data?.meta} pagination={transactionsPagination} />
+          </>
         ) : (
           <EmptyState title="Select a donation" />
         )}
@@ -2401,43 +2512,95 @@ function PaymentsPage() {
 }
 
 function WarehousesPage() {
-  const warehouses = useQuery({ queryKey: ['warehouses'], queryFn: getWarehouses })
+  const { me } = useOutletContext<{ me: CurrentUser }>()
+  const queryClient = useQueryClient()
+  const pagination = useListPagination()
+  const warehouses = useQuery({ queryKey: ['warehouses', pagination.params], queryFn: () => getWarehousesPage(pagination.params) })
+  const branches = useQuery({ queryKey: ['branches'], queryFn: getBranches })
+  const users = useQuery({ queryKey: ['users'], queryFn: getUsers })
+  const [editing, setEditing] = useState<WarehouseRecord | null>(null)
+  const save = useMutation({
+    mutationFn: ({ id, input }: { id?: number; input: WarehouseInput }) => (id ? updateWarehouse(id, input) : createWarehouse(input)),
+    onSuccess: () => { setEditing(null); void queryClient.invalidateQueries({ queryKey: ['warehouses'] }) },
+  })
+  const remove = useMutation({ mutationFn: deleteWarehouse, onSuccess: () => { setEditing(null); void queryClient.invalidateQueries({ queryKey: ['warehouses'] }) } })
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const form = new FormData(event.currentTarget)
+    save.mutate({ id: editing?.id, input: { branch_id: formNullableNumber(form, 'branch_id'), name: formString(form, 'name'), code: formString(form, 'code'), address: formNullable(form, 'address'), manager_user_id: formNullableNumber(form, 'manager_user_id'), status: formString(form, 'status') } })
+  }
 
   return (
-    <ModulePage description="Manage warehouses, branch assignment, status, and managers." title="Warehouses" planned={['Add create/edit/detail pages.', 'Add status and manager controls.']}>
+    <ModulePage description="Manage warehouses, branch assignment, status, managers, and stock activity." title="Warehouses">
       <Panel icon={<Warehouse size={20} />} title="Warehouses">
-        <RecordList isError={warehouses.isError} isLoading={warehouses.isPending} items={warehouses.data} label="warehouses" render={(warehouse) => `${warehouse.code} - ${warehouse.name} - ${warehouse.status} - ${warehouse.stock_lots_count ?? 0} lots`} />
+        <RecordList isError={warehouses.isError} isLoading={warehouses.isPending} items={warehouses.data?.data} label="warehouses" render={(warehouse) => <button className="w-full text-left" onClick={() => setEditing(warehouse)} type="button"><StatusBadge status={warehouse.status} /> {warehouse.code} - {warehouse.name} - {warehouse.stock_lots_count ?? 0} lots / {warehouse.stock_movements_count ?? 0} movements</button>} />
+        <PaginationControls meta={warehouses.data?.meta} pagination={pagination} />
       </Panel>
+      {me.permissions?.some((p) => ['warehouses.create', 'warehouses.update'].includes(p)) ? <Panel icon={<Warehouse size={20} />} title={editing ? `Edit ${editing.code}` : 'Create Warehouse'}>
+        <form className="space-y-4" key={editing?.id ?? 'new'} onSubmit={submit}>
+          <FormGrid><TextField defaultValue={editing?.name} label="Name" name="name" required /><TextField defaultValue={editing?.code} label="Code" name="code" required />
+            <SelectField defaultValue={String(editing?.branch_id ?? '')} label="Branch" name="branch_id" options={['', ...(branches.data ?? []).map((b) => String(b.id))]} optionLabels={Object.fromEntries((branches.data ?? []).map((b) => [String(b.id), `${b.code} - ${b.name}`]))} />
+            <SelectField defaultValue={String(editing?.manager_user_id ?? '')} label="Manager" name="manager_user_id" options={['', ...(users.data ?? []).map((u) => String(u.id))]} optionLabels={Object.fromEntries((users.data ?? []).map((u) => [String(u.id), u.name]))} />
+            <SelectField defaultValue={editing?.status ?? 'active'} label="Status" name="status" options={['active', 'inactive']} /></FormGrid>
+          <TextAreaField defaultValue={editing?.address ?? ''} label="Address" name="address" />
+          <FormFooter isPending={save.isPending} onCancel={editing ? () => setEditing(null) : undefined} submitLabel={editing ? 'Save warehouse' : 'Create warehouse'} /><MutationState isError={save.isError || remove.isError} isSuccess={save.isSuccess || remove.isSuccess} />
+          {editing && me.permissions?.includes('warehouses.delete') ? <SmallButton danger onClick={() => { if (confirm('Delete this warehouse?')) remove.mutate(editing.id) }}>Delete warehouse</SmallButton> : null}
+        </form>
+      </Panel> : null}
     </ModulePage>
   )
 }
 
 function InventoryItemsPage() {
-  const inventoryItems = useQuery({ queryKey: ['inventory-items'], queryFn: getInventoryItems })
+  const { me } = useOutletContext<{ me: CurrentUser }>()
+  const queryClient = useQueryClient()
+  const pagination = useListPagination()
+  const inventoryItems = useQuery({ queryKey: ['inventory-items', pagination.params], queryFn: () => getInventoryItemsPage(pagination.params) })
+  const [editing, setEditing] = useState<InventoryItem | null>(null)
+  const save = useMutation({ mutationFn: ({ id, input }: { id?: number; input: InventoryItemInput }) => id ? updateInventoryItem(id, input) : createInventoryItem(input), onSuccess: () => { setEditing(null); void queryClient.invalidateQueries({ queryKey: ['inventory-items'] }); void queryClient.invalidateQueries({ queryKey: ['stock-summary'] }) } })
+  const remove = useMutation({ mutationFn: deleteInventoryItem, onSuccess: () => { setEditing(null); void queryClient.invalidateQueries({ queryKey: ['inventory-items'] }) } })
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault(); const form = new FormData(event.currentTarget)
+    save.mutate({ id: editing?.id, input: { sku: formString(form, 'sku'), name: formString(form, 'name'), category: formString(form, 'category'), unit: formString(form, 'unit'), description: formNullable(form, 'description'), minimum_stock_level: Number(formString(form, 'minimum_stock_level') || 0), track_expiry: form.get('track_expiry') === 'on', status: formString(form, 'status') } })
+  }
 
   return (
-    <ModulePage description="Manage catalog items, units, categories, minimum stock, and expiry tracking." title="Inventory Items" planned={['Add create/edit/detail pages.', 'Add item stock and movement drill-downs.']}>
+    <ModulePage description="Manage catalog items, units, categories, minimum stock, and expiry tracking." title="Inventory Items">
       <Panel icon={<Package size={20} />} title="Inventory Items">
-        <RecordList isError={inventoryItems.isError} isLoading={inventoryItems.isPending} items={inventoryItems.data} label="inventory items" render={(item) => `${item.sku} - ${item.name} - ${item.category} - min ${item.minimum_stock_level} ${item.unit}`} />
+        <RecordList isError={inventoryItems.isError} isLoading={inventoryItems.isPending} items={inventoryItems.data?.data} label="inventory items" render={(item) => <button className="w-full text-left" onClick={() => setEditing(item)} type="button"><StatusBadge status={item.status} /> {item.sku} - {item.name} - {item.category} - min {item.minimum_stock_level} {item.unit}</button>} />
+        <PaginationControls meta={inventoryItems.data?.meta} pagination={pagination} />
       </Panel>
+      {me.permissions?.some((p) => ['inventory_items.create', 'inventory_items.update'].includes(p)) ? <Panel icon={<Package size={20} />} title={editing ? `Edit ${editing.sku}` : 'Create Inventory Item'}>
+        <form className="space-y-4" key={editing?.id ?? 'new'} onSubmit={submit}><FormGrid>
+          <TextField defaultValue={editing?.sku} label="SKU" name="sku" required /><TextField defaultValue={editing?.name} label="Name" name="name" required /><TextField defaultValue={editing?.category} label="Category" name="category" required /><TextField defaultValue={editing?.unit} label="Unit" name="unit" required /><TextField defaultValue={editing?.minimum_stock_level ?? '0'} label="Minimum stock" min="0" name="minimum_stock_level" step="0.001" type="number" /><SelectField defaultValue={editing?.status ?? 'active'} label="Status" name="status" options={['active', 'inactive']} /></FormGrid>
+          <TextAreaField defaultValue={editing?.description ?? ''} label="Description" name="description" /><label className="flex items-center gap-2 text-sm"><input defaultChecked={editing?.track_expiry} name="track_expiry" type="checkbox" /> Track expiry dates</label>
+          <FormFooter isPending={save.isPending} onCancel={editing ? () => setEditing(null) : undefined} submitLabel={editing ? 'Save item' : 'Create item'} /><MutationState isError={save.isError || remove.isError} isSuccess={save.isSuccess || remove.isSuccess} />
+          {editing && me.permissions?.includes('inventory_items.delete') ? <SmallButton danger onClick={() => { if (confirm('Delete this inventory item?')) remove.mutate(editing.id) }}>Delete item</SmallButton> : null}
+        </form>
+      </Panel> : null}
     </ModulePage>
   )
 }
 
 function StockSummaryPage() {
-  const stockSummary = useQuery({ queryKey: ['stock-summary'], queryFn: getStockSummary })
+  const pagination = useListPagination()
+  const stockSummary = useQuery({ queryKey: ['stock-summary', pagination.params], queryFn: () => getStockSummaryPage(pagination.params) })
 
   return (
     <ModulePage description="Review available and reserved quantities by item." title="Stock Summary" planned={['Add filters by warehouse/category.', 'Link rows to item and movement detail pages.']}>
       <Panel icon={<Boxes size={20} />} title="Stock Summary">
-        <RecordList isError={stockSummary.isError} isLoading={stockSummary.isPending} items={stockSummary.data} label="stock summary rows" render={(row) => `${row.sku} - ${row.available_quantity} ${row.unit} available - ${row.reserved_quantity} reserved - ${row.low_stock ? 'low stock' : 'healthy'}`} />
+        <RecordList isError={stockSummary.isError} isLoading={stockSummary.isPending} items={stockSummary.data?.data} label="stock summary rows" render={(row) => `${row.sku} - ${row.available_quantity} ${row.unit} available - ${row.reserved_quantity} reserved - ${row.low_stock ? 'low stock' : 'healthy'}`} />
+        <PaginationControls meta={stockSummary.data?.meta} pagination={pagination} />
       </Panel>
     </ModulePage>
   )
 }
 
 function StockLotsPage() {
-  const stockLots = useQuery({ queryKey: ['stock-lots'], queryFn: getStockLots })
+  const pagination = useListPagination()
+  const stockLots = useQuery({ queryKey: ['stock-lots', pagination.params], queryFn: () => getStockLotsPage(pagination.params) })
 
   return (
     <ModulePage description="Review stock lots, remaining quantities, reservations, sources, and expiry dates." title="Stock Lots" planned={['Add receive stock form route.', 'Add lot detail view.']}>
@@ -2445,49 +2608,72 @@ function StockLotsPage() {
         <RecordList
           isError={stockLots.isError}
           isLoading={stockLots.isPending}
-          items={stockLots.data}
+          items={stockLots.data?.data}
           label="stock lots"
           render={(lot) =>
             `${lot.inventory_item?.sku ?? 'Unknown item'} - ${lot.remaining_quantity} ${lot.inventory_item?.unit ?? ''} remaining - ${lot.warehouse?.code ?? 'No warehouse'} - ${lot.source_type} #${lot.source_id ?? '-'} - expires ${lot.expiry_date ?? '-'}`
           }
         />
+        <PaginationControls meta={stockLots.data?.meta} pagination={pagination} />
       </Panel>
     </ModulePage>
   )
 }
 
 function StockMovementsPage() {
-  const stockMovements = useQuery({ queryKey: ['stock-movements'], queryFn: getStockMovements })
+  const { me } = useOutletContext<{ me: CurrentUser }>()
+  const queryClient = useQueryClient()
+  const pagination = useListPagination()
+  const stockMovements = useQuery({ queryKey: ['stock-movements', pagination.params], queryFn: () => getStockMovementsPage(pagination.params) })
+  const warehouses = useQuery({ queryKey: ['warehouses'], queryFn: getWarehouses })
+  const items = useQuery({ queryKey: ['inventory-items'], queryFn: getInventoryItems })
+  const lots = useQuery({ queryKey: ['stock-lots'], queryFn: getStockLots })
+  const receive = useMutation({ mutationFn: receiveStock, onSuccess: refreshStock })
+  const adjust = useMutation({ mutationFn: adjustStock, onSuccess: refreshStock })
+
+  function refreshStock() {
+    void queryClient.invalidateQueries({ queryKey: ['stock-movements'] }); void queryClient.invalidateQueries({ queryKey: ['stock-lots'] }); void queryClient.invalidateQueries({ queryKey: ['stock-summary'] }); void queryClient.invalidateQueries({ queryKey: ['stock-low-stock'] })
+  }
+  function receiveSubmit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const f = new FormData(event.currentTarget); receive.mutate({ warehouse_id: Number(formString(f, 'warehouse_id')), inventory_item_id: Number(formString(f, 'inventory_item_id')), quantity: Number(formString(f, 'quantity')), source_type: formString(f, 'source_type'), source_id: formNullableNumber(f, 'source_id'), expiry_date: formNullable(f, 'expiry_date'), received_at: formString(f, 'received_at'), notes: formNullable(f, 'notes') }) }
+  function adjustSubmit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const f = new FormData(event.currentTarget); adjust.mutate({ warehouse_id: Number(formString(f, 'warehouse_id')), inventory_item_id: Number(formString(f, 'inventory_item_id')), stock_lot_id: formNullableNumber(f, 'stock_lot_id'), movement_type: formString(f, 'movement_type'), quantity: Number(formString(f, 'quantity')), expiry_date: formNullable(f, 'expiry_date'), notes: formString(f, 'notes') }) }
+  const warehouseLabels = Object.fromEntries((warehouses.data ?? []).map((w) => [String(w.id), `${w.code} - ${w.name}`]))
+  const itemLabels = Object.fromEntries((items.data ?? []).map((item) => [String(item.id), `${item.sku} - ${item.name}`]))
 
   return (
-    <ModulePage description="Review all stock-in, adjustment, reservation, release, and distribution movements." title="Stock Movements" planned={['Add receive stock and adjust stock forms.', 'Add movement filters.']}>
+    <ModulePage description="Review stock activity, receive new lots, and record controlled adjustments." title="Stock Movements">
       <Panel icon={<ListChecks size={20} />} title="Stock Movements">
         <RecordList
           isError={stockMovements.isError}
           isLoading={stockMovements.isPending}
-          items={stockMovements.data}
+          items={stockMovements.data?.data}
           label="stock movements"
           render={(movement) => `${movement.movement_type} - ${movement.inventory_item?.sku ?? 'Unknown item'} - ${movement.quantity} ${movement.inventory_item?.unit ?? ''} - ${movement.warehouse?.code ?? 'No warehouse'} - ${formatDate(movement.created_at)}`}
         />
+        <PaginationControls meta={stockMovements.data?.meta} pagination={pagination} />
       </Panel>
+      {me.permissions?.includes('stock_lots.receive') ? <Panel icon={<Boxes size={20} />} title="Receive Stock"><form className="space-y-4" onSubmit={receiveSubmit}><FormGrid><SelectField label="Warehouse" name="warehouse_id" options={(warehouses.data ?? []).map((w) => String(w.id))} optionLabels={warehouseLabels} required /><SelectField label="Inventory item" name="inventory_item_id" options={(items.data ?? []).map((i) => String(i.id))} optionLabels={itemLabels} required /><TextField label="Quantity" min="0.001" name="quantity" step="0.001" type="number" required /><SelectField label="Source" name="source_type" options={['opening_balance', 'purchase', 'donation_in_kind', 'transfer', 'adjustment', 'other']} /><TextField label="Source ID" min="1" name="source_id" type="number" /><TextField label="Expiry date" name="expiry_date" type="date" /><TextField defaultValue={new Date().toISOString().slice(0, 16)} label="Received at" name="received_at" type="datetime-local" required /></FormGrid><TextAreaField label="Notes" name="notes" /><FormFooter isPending={receive.isPending} submitLabel="Receive stock" /><MutationState isError={receive.isError} isSuccess={receive.isSuccess} /></form></Panel> : null}
+      {me.permissions?.includes('stock_movements.adjust') ? <Panel icon={<ListChecks size={20} />} title="Adjust Stock"><form className="space-y-4" onSubmit={adjustSubmit}><FormGrid><SelectField label="Warehouse" name="warehouse_id" options={(warehouses.data ?? []).map((w) => String(w.id))} optionLabels={warehouseLabels} required /><SelectField label="Inventory item" name="inventory_item_id" options={(items.data ?? []).map((i) => String(i.id))} optionLabels={itemLabels} required /><SelectField label="Stock lot (required for stock out)" name="stock_lot_id" options={['', ...(lots.data ?? []).map((l) => String(l.id))]} optionLabels={Object.fromEntries((lots.data ?? []).map((l) => [String(l.id), `#${l.id} - ${l.inventory_item?.sku} - ${l.remaining_quantity}`]))} /><SelectField label="Movement" name="movement_type" options={['adjustment_in', 'adjustment_out', 'damaged', 'expired']} /><TextField label="Quantity" min="0.001" name="quantity" step="0.001" type="number" required /><TextField label="Expiry date (new inbound lot)" name="expiry_date" type="date" /></FormGrid><TextAreaField label="Reason / notes" name="notes" required /><FormFooter isPending={adjust.isPending} submitLabel="Record adjustment" /><MutationState isError={adjust.isError} isSuccess={adjust.isSuccess} /></form></Panel> : null}
     </ModulePage>
   )
 }
 
 function LowStockPage() {
-  const lowStock = useQuery({ queryKey: ['stock-low-stock'], queryFn: getLowStock })
+  const pagination = useListPagination()
+  const lowStock = useQuery({ queryKey: ['stock-low-stock', pagination.params], queryFn: () => getLowStockPage(pagination.params) })
 
   return (
     <ModulePage description="Review items under configured minimum stock levels." title="Low Stock" planned={['Add links to receive stock and item detail pages.']}>
       <Panel icon={<ClipboardCheck size={20} />} title="Low Stock">
-        <RecordList isError={lowStock.isError} isLoading={lowStock.isPending} items={lowStock.data} label="low stock rows" render={(row) => `${row.sku} - ${row.available_quantity}/${row.minimum_stock_level} ${row.unit}`} />
+        <RecordList isError={lowStock.isError} isLoading={lowStock.isPending} items={lowStock.data?.data} label="low stock rows" render={(row) => `${row.sku} - ${row.available_quantity}/${row.minimum_stock_level} ${row.unit}`} />
+        <PaginationControls meta={lowStock.data?.meta} pagination={pagination} />
       </Panel>
     </ModulePage>
   )
 }
 
 function ExpiringStockPage() {
-  const expiringStock = useQuery({ queryKey: ['stock-expiring'], queryFn: getExpiringStock })
+  const pagination = useListPagination()
+  const expiringStock = useQuery({ queryKey: ['stock-expiring', pagination.params], queryFn: () => getExpiringStockPage(pagination.params) })
 
   return (
     <ModulePage description="Review stock lots expiring soon." title="Expiring Stock" planned={['Add expiry window filter.', 'Add links to affected lots and warehouses.']}>
@@ -2495,125 +2681,166 @@ function ExpiringStockPage() {
         <RecordList
           isError={expiringStock.isError}
           isLoading={expiringStock.isPending}
-          items={expiringStock.data}
+          items={expiringStock.data?.data}
           label="expiring stock lots"
           render={(lot) => `${lot.inventory_item?.sku ?? 'Unknown item'} - ${lot.remaining_quantity} ${lot.inventory_item?.unit ?? ''} - ${lot.warehouse?.code ?? 'No warehouse'} - expires ${lot.expiry_date ?? '-'}`}
         />
+        <PaginationControls meta={expiringStock.data?.meta} pagination={pagination} />
       </Panel>
     </ModulePage>
   )
 }
 
 function AidBatchesPage() {
-  const aidBatches = useQuery({ queryKey: ['aid-batches'], queryFn: getAidBatches })
+  const { me } = useOutletContext<{ me: CurrentUser }>()
+  const queryClient = useQueryClient()
+  const pagination = useListPagination()
+  const distributionsPagination = useListPagination('distributions_')
+  const eligiblePagination = useListPagination('eligible_')
+  const aidBatches = useQuery({ queryKey: ['aid-batches', pagination.params], queryFn: () => getAidBatchesPage(pagination.params) })
+  const branches = useQuery({ queryKey: ['branches'], queryFn: getBranches })
+  const warehouses = useQuery({ queryKey: ['warehouses'], queryFn: getWarehouses })
+  const campaigns = useQuery({ queryKey: ['campaigns'], queryFn: getCampaigns })
+  const cases = useQuery({ queryKey: ['case-files'], queryFn: getCaseFiles })
+  const [selectedId, setSelectedId] = useState<number | null>(null)
+  const selected = useQuery({ queryKey: ['aid-batch', selectedId], queryFn: () => getAidBatch(selectedId!), enabled: selectedId !== null })
+  const distributions = useQuery({ queryKey: ['aid-batch-distributions', selectedId, distributionsPagination.params], queryFn: () => getAidBatchDistributionsPage(selectedId!, distributionsPagination.params), enabled: selectedId !== null })
+  const eligible = useQuery({ queryKey: ['aid-batch-eligible', selectedId, eligiblePagination.params], queryFn: () => getEligibleBeneficiariesPage(selectedId!, eligiblePagination.params), enabled: selectedId !== null })
+  const stockCheck = useQuery({ queryKey: ['aid-batch-stock-check', selectedId], queryFn: () => getAidBatchStockCheck(selectedId!), enabled: false })
+  const save = useMutation({ mutationFn: ({ id, input }: { id?: number; input: AidBatchInput }) => id ? updateAidBatch(id, input) : createAidBatch(input), onSuccess: (batch) => { setSelectedId(batch.id); refresh() } })
+  const remove = useMutation({ mutationFn: deleteAidBatch, onSuccess: () => { setSelectedId(null); refresh() } })
+  const workflow = useMutation({ mutationFn: ({ id, action }: { id: number; action: 'submit-approval' | 'approve' | 'cancel' | 'complete' }) => runAidBatchAction(id, action), onSuccess: refresh })
+  const addDistribution = useMutation({ mutationFn: ({ batchId, input }: { batchId: number; input: Parameters<typeof createAidDistribution>[1] }) => createAidDistribution(batchId, input), onSuccess: refresh })
+
+  function refresh() { void queryClient.invalidateQueries({ queryKey: ['aid-batches'] }); void queryClient.invalidateQueries({ queryKey: ['aid-batch', selectedId] }); void queryClient.invalidateQueries({ queryKey: ['aid-batch-eligible', selectedId] }); void queryClient.invalidateQueries({ queryKey: ['aid-batch-distributions', selectedId] }) }
+  function batchSubmit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const f = new FormData(event.currentTarget); save.mutate({ id: selected.data?.status === 'draft' ? selected.data.id : undefined, input: { branch_id: formNullableNumber(f, 'branch_id'), warehouse_id: formNullableNumber(f, 'warehouse_id'), title: formString(f, 'title'), description: formNullable(f, 'description'), campaign_id: formNullableNumber(f, 'campaign_id'), scheduled_date: formNullable(f, 'scheduled_date') } }) }
+  function distributionSubmit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); if (!selectedId) return; const f = new FormData(event.currentTarget); addDistribution.mutate({ batchId: selectedId, input: { beneficiary_id: Number(formString(f, 'beneficiary_id')), case_file_id: formNullableNumber(f, 'case_file_id'), scheduled_at: formNullable(f, 'scheduled_at'), delivery_method: formString(f, 'delivery_method'), notes: formNullable(f, 'notes') } }) }
+  const selectLabels = (records: { id: number; code?: string; name?: string; title?: string }[]) => Object.fromEntries(records.map((r) => [String(r.id), r.title ?? `${r.code ?? ''} ${r.name ?? ''}`.trim()]))
 
   return (
-    <ModulePage description="Plan aid batches, add distributions, check stock, approve, and complete deliveries." title="Aid Batches" planned={['Add create/edit/detail pages.', 'Add distributions, stock-check, submit, approve, cancel, and complete controls.']}>
+    <ModulePage description="Plan aid batches, add eligible beneficiaries and items, verify stock, approve, and complete deliveries." title="Aid Batches">
       <Panel icon={<Truck size={20} />} title="Aid Batches">
         <RecordList
           isError={aidBatches.isError}
           isLoading={aidBatches.isPending}
-          items={aidBatches.data}
+          items={aidBatches.data?.data}
           label="aid batches"
           render={(batch) => (
-            <>
+            <button className="w-full text-left" onClick={() => setSelectedId(batch.id)} type="button">
               <StatusBadge status={batch.status} /> {batch.batch_number} - {batch.title} - {batch.distributions_count ?? 0} distributions - {batch.warehouse?.code ?? 'No warehouse'}
-            </>
+            </button>
           )}
         />
+        <PaginationControls meta={aidBatches.data?.meta} pagination={pagination} />
       </Panel>
+      {me.permissions?.some((p) => ['aid_batches.create', 'aid_batches.update'].includes(p)) ? <Panel icon={<Truck size={20} />} title={selected.data?.status === 'draft' ? `Edit ${selected.data.batch_number}` : 'Create Aid Batch'}><form className="space-y-4" key={selected.data?.id ?? 'new'} onSubmit={batchSubmit}><FormGrid><TextField defaultValue={selected.data?.status === 'draft' ? selected.data.title : ''} label="Title" name="title" required /><TextField defaultValue={selected.data?.status === 'draft' ? selected.data.scheduled_date ?? '' : ''} label="Scheduled date" name="scheduled_date" type="date" /><SelectField defaultValue={String(selected.data?.branch_id ?? '')} label="Branch" name="branch_id" options={['', ...(branches.data ?? []).map((x) => String(x.id))]} optionLabels={selectLabels(branches.data ?? [])} /><SelectField defaultValue={String(selected.data?.warehouse_id ?? '')} label="Warehouse" name="warehouse_id" options={['', ...(warehouses.data ?? []).map((x) => String(x.id))]} optionLabels={selectLabels(warehouses.data ?? [])} /><SelectField defaultValue={String(selected.data?.campaign_id ?? '')} label="Campaign" name="campaign_id" options={['', ...(campaigns.data ?? []).map((x) => String(x.id))]} optionLabels={selectLabels(campaigns.data ?? [])} /></FormGrid><TextAreaField defaultValue={selected.data?.status === 'draft' ? selected.data.description ?? '' : ''} label="Description" name="description" /><FormFooter isPending={save.isPending} onCancel={selected.data ? () => setSelectedId(null) : undefined} submitLabel={selected.data?.status === 'draft' ? 'Save batch' : 'Create batch'} /><MutationState isError={save.isError || remove.isError} isSuccess={save.isSuccess || remove.isSuccess} />{selected.data?.status === 'draft' && me.permissions?.includes('aid_batches.delete') ? <SmallButton danger onClick={() => { if (confirm('Delete this draft batch?')) remove.mutate(selected.data!.id) }}>Delete batch</SmallButton> : null}</form></Panel> : null}
+      {selected.data ? <Panel icon={<ListChecks size={20} />} title={`${selected.data.batch_number} Workflow`}><div className="space-y-4"><KeyValueRows rows={[[ 'Status', selected.data.status ], ['Scheduled', selected.data.scheduled_date], ['Distributions', String(selected.data.distributions_count ?? selected.data.distributions?.length ?? 0)], ['Reservations', String(selected.data.reservations_count ?? 0)]]} /><div className="flex flex-wrap gap-2">{selected.data.status === 'draft' && me.permissions?.includes('aid_batches.submit_approval') ? <SmallButton onClick={() => workflow.mutate({ id: selected.data!.id, action: 'submit-approval' })}>Submit approval</SmallButton> : null}{selected.data.status === 'pending_approval' && me.permissions?.includes('aid_batches.approve') ? <SmallButton onClick={() => workflow.mutate({ id: selected.data!.id, action: 'approve' })}>Approve & reserve stock</SmallButton> : null}{!['cancelled', 'completed'].includes(selected.data.status) && me.permissions?.includes('aid_batches.cancel') ? <SmallButton danger onClick={() => { if (confirm('Cancel this batch?')) workflow.mutate({ id: selected.data!.id, action: 'cancel' }) }}>Cancel</SmallButton> : null}{selected.data.status === 'in_progress' && me.permissions?.includes('aid_batches.complete') ? <SmallButton onClick={() => workflow.mutate({ id: selected.data!.id, action: 'complete' })}>Complete</SmallButton> : null}<SmallButton onClick={() => void stockCheck.refetch()}>Run stock check</SmallButton></div>{stockCheck.data ? <JsonBlock label="Stock check" value={stockCheck.data} /> : null}<MutationState isError={workflow.isError || stockCheck.isError} isSuccess={workflow.isSuccess} /></div></Panel> : null}
+      {selected.data && ['draft', 'pending_approval'].includes(selected.data.status) && me.permissions?.includes('aid_distributions.create') ? <Panel icon={<Users size={20} />} title="Add Distribution"><form className="space-y-4" onSubmit={distributionSubmit}><FormGrid><SelectField label="Eligible beneficiary" name="beneficiary_id" options={(eligible.data?.data ?? []).map((b) => String(b.id))} optionLabels={Object.fromEntries((eligible.data?.data ?? []).map((b) => [String(b.id), `${b.code} - ${b.full_name}`]))} required /><SelectField label="Case file" name="case_file_id" options={['', ...(cases.data ?? []).map((c) => String(c.id))]} optionLabels={Object.fromEntries((cases.data ?? []).map((c) => [String(c.id), c.case_number]))} /><TextField label="Scheduled at" name="scheduled_at" type="datetime-local" /><SelectField label="Delivery method" name="delivery_method" options={['pickup', 'home_delivery', 'field_visit', 'partner_delivery', 'other']} /></FormGrid><TextAreaField label="Notes" name="notes" /><FormFooter isPending={addDistribution.isPending} submitLabel="Add distribution" /><MutationState isError={addDistribution.isError} isSuccess={addDistribution.isSuccess} /></form><PaginationControls meta={eligible.data?.meta} pagination={eligiblePagination} /></Panel> : null}
+      {(distributions.data?.data ?? []).map((distribution) => <DistributionControl batch={selected.data!} distribution={distribution} key={distribution.id} onChanged={refresh} />)}
+      {selected.data ? <div className="lg:col-span-2"><PaginationControls meta={distributions.data?.meta} pagination={distributionsPagination} /></div> : null}
     </ModulePage>
   )
 }
 
 function AidDistributionsPage() {
+  const batches = useQuery({ queryKey: ['aid-batches'], queryFn: getAidBatches })
+  const pagination = useListPagination()
+  const [batchId, setBatchId] = useState<number | null>(null)
+  const batch = useQuery({ queryKey: ['aid-batch', batchId], queryFn: () => getAidBatch(batchId!), enabled: batchId !== null })
+  const distributions = useQuery({ queryKey: ['aid-batch-distributions', batchId, pagination.params], queryFn: () => getAidBatchDistributionsPage(batchId!, pagination.params), enabled: batchId !== null })
   return (
-    <PlaceholderModulePage
-      icon={<ClipboardCheck size={20} />}
-      planned={['Add distribution list/detail views.', 'Add delivery, failure, reschedule, and proof upload actions.']}
-      title="Aid Distributions"
-      description="Distribution records are currently managed under batches in the API. Dedicated distribution screens are part of Slice 11.6."
-    />
+    <ModulePage description="Select a batch to manage its delivery records, items, failures, rescheduling, and proof." title="Aid Distributions"><Panel icon={<Truck size={20} />} title="Select Batch"><SelectField defaultValue="" label="Aid batch" name="batch" onChange={(event) => setBatchId(Number(event.target.value) || null)} options={['', ...(batches.data ?? []).map((b) => String(b.id))]} optionLabels={Object.fromEntries((batches.data ?? []).map((b) => [String(b.id), `${b.batch_number} - ${b.title}`]))} /></Panel>{(distributions.data?.data ?? []).map((distribution) => <DistributionControl batch={batch.data!} distribution={distribution} key={distribution.id} onChanged={() => void distributions.refetch()} />)}{batch.data ? <div className="lg:col-span-2"><PaginationControls meta={distributions.data?.meta} pagination={pagination} /></div> : null}</ModulePage>
   )
 }
 
+function DistributionControl({ batch, distribution, onChanged }: { batch: AidBatch; distribution: AidDistribution; onChanged: () => void }) {
+  const { me } = useOutletContext<{ me: CurrentUser }>()
+  const itemsPagination = useListPagination(`items_${distribution.id}_`)
+  const items = useQuery({ queryKey: ['inventory-items'], queryFn: getInventoryItems })
+  const lots = useQuery({ queryKey: ['stock-lots'], queryFn: getStockLots })
+  const detail = useQuery({ queryKey: ['aid-distribution', distribution.id], queryFn: () => getAidDistribution(distribution.id) })
+  const distributionItems = useQuery({ queryKey: ['distribution-items', distribution.id, itemsPagination.params], queryFn: () => getDistributionItemsPage(distribution.id, itemsPagination.params) })
+  const addItem = useMutation({ mutationFn: (input: Parameters<typeof createDistributionItem>[1]) => createDistributionItem(distribution.id, input), onSuccess: changed })
+  const removeItem = useMutation({ mutationFn: (id: number) => deleteDistributionItem(distribution.id, id), onSuccess: changed })
+  const removeDistribution = useMutation({ mutationFn: () => deleteAidDistribution(batch.id, distribution.id), onSuccess: onChanged })
+  const failed = useMutation({ mutationFn: ({ reason, notes }: { reason: string; notes?: string }) => markDistributionFailed(distribution.id, reason, notes), onSuccess: changed })
+  const reschedule = useMutation({ mutationFn: ({ date, notes }: { date: string; notes?: string }) => rescheduleDistribution(distribution.id, date, notes), onSuccess: changed })
+  const proof = useMutation({ mutationFn: ({ form, delivered }: { form: FormData; delivered: boolean }) => submitDistributionProof(distribution.id, form, delivered), onSuccess: changed })
+  function changed() { void detail.refetch(); void distributionItems.refetch(); onChanged() }
+  function itemSubmit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const f = new FormData(event.currentTarget); addItem.mutate({ inventory_item_id: formNullableNumber(f, 'inventory_item_id'), stock_lot_id: formNullableNumber(f, 'stock_lot_id'), quantity: formNullableNumber(f, 'quantity'), cash_amount: formNullableNumber(f, 'cash_amount'), currency: formNullable(f, 'currency'), notes: formNullable(f, 'notes') }) }
+  function deliverySubmit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const f = new FormData(event.currentTarget); const action = formString(f, 'action'); if (action === 'failed') failed.mutate({ reason: formString(f, 'failure_reason'), notes: formString(f, 'notes') }); else if (action === 'reschedule') reschedule.mutate({ date: formString(f, 'scheduled_at'), notes: formString(f, 'notes') }); else proof.mutate({ form: f, delivered: action === 'delivered' }) }
+  const current = detail.data ?? distribution
+  return <Panel icon={<ClipboardCheck size={20} />} title={`${current.distribution_number} — ${current.beneficiary?.full_name ?? 'Beneficiary'}`}><div className="space-y-4"><KeyValueRows rows={[[ 'Status', current.status ], ['Method', current.delivery_method], ['Scheduled', current.scheduled_at ? formatDate(current.scheduled_at) : null], ['Delivered', current.delivered_at ? formatDate(current.delivered_at) : null], ['Failure', current.failure_reason]]} />
+    <RecordList isError={distributionItems.isError} isLoading={distributionItems.isPending} items={distributionItems.data?.data} label="distribution items" render={(item) => <div className="flex items-center justify-between gap-2"><span>{item.inventory_item ? `${item.inventory_item.sku} — ${item.quantity} ${item.inventory_item.unit}` : `${item.cash_amount} ${item.currency}`}</span>{me.permissions?.includes('aid_distributions.update') && ['draft', 'pending_approval'].includes(current.status) ? <SmallButton danger onClick={() => removeItem.mutate(item.id)}>Remove</SmallButton> : null}</div>} />
+    <PaginationControls meta={distributionItems.data?.meta} pagination={itemsPagination} />
+    {me.permissions?.includes('aid_distributions.update') && ['draft', 'pending_approval'].includes(current.status) ? <form className="space-y-3 rounded-md border border-[#d9e1de] p-3" onSubmit={itemSubmit}><p className="text-sm font-semibold">Add inventory or cash item</p><FormGrid><SelectField label="Inventory item" name="inventory_item_id" options={['', ...(items.data ?? []).map((i) => String(i.id))]} optionLabels={Object.fromEntries((items.data ?? []).map((i) => [String(i.id), `${i.sku} - ${i.name}`]))} /><SelectField label="Preferred stock lot" name="stock_lot_id" options={['', ...(lots.data ?? []).map((l) => String(l.id))]} optionLabels={Object.fromEntries((lots.data ?? []).map((l) => [String(l.id), `#${l.id} - ${l.inventory_item?.sku} (${l.remaining_quantity})`]))} /><TextField label="Quantity" min="0.001" name="quantity" step="0.001" type="number" /><TextField label="Cash amount" min="0.01" name="cash_amount" step="0.01" type="number" /><TextField label="Currency" maxLength={3} name="currency" /></FormGrid><TextField label="Notes" name="notes" /><FormFooter isPending={addItem.isPending} submitLabel="Add item" /></form> : null}
+    {['approved', 'scheduled', 'in_progress'].includes(current.status) && me.permissions?.some((p) => ['aid_distributions.deliver', 'aid_distributions.fail', 'aid_distributions.reschedule', 'delivery_proofs.upload'].includes(p)) ? <form className="space-y-3 rounded-md border border-[#d9e1de] p-3" onSubmit={deliverySubmit}><p className="text-sm font-semibold">Delivery action</p><FormGrid><SelectField label="Action" name="action" options={['delivered', 'proof', 'failed', 'reschedule']} /><SelectField label="Proof type" name="proof_type" options={['manual', 'photo', 'signature', 'otp', 'qr']} /><TextField accept=".jpg,.jpeg,.png,.pdf" label="Proof file" name="file" type="file" /><TextField label="OTP code" name="otp_code" /><TextField label="Failure reason" name="failure_reason" /><TextField label="New schedule" name="scheduled_at" type="datetime-local" /></FormGrid><TextAreaField label="Notes" name="notes" /><FormFooter isPending={failed.isPending || reschedule.isPending || proof.isPending} submitLabel="Apply delivery action" /></form> : null}
+    {['draft', 'pending_approval'].includes(current.status) && me.permissions?.includes('aid_distributions.delete') ? <SmallButton danger onClick={() => { if (confirm('Delete this distribution?')) removeDistribution.mutate() }}>Delete distribution</SmallButton> : null}<MutationState isError={addItem.isError || removeItem.isError || removeDistribution.isError || failed.isError || reschedule.isError || proof.isError} isSuccess={addItem.isSuccess || failed.isSuccess || reschedule.isSuccess || proof.isSuccess} /></div></Panel>
+}
+
 function ReportsPage() {
-  const dashboardReport = useQuery({ queryKey: ['reports-dashboard'], queryFn: getDashboardReport })
+  const queryClient = useQueryClient()
+  const pagination = useListPagination()
+  const [reportType, setReportType] = useState<ReportType>('donations')
+  const [filters, setFilters] = useState<Record<string, string>>({})
+  const report = useQuery({ queryKey: ['report', reportType, filters], queryFn: () => getReport(reportType, filters) })
+  const exports = useQuery({ queryKey: ['exports', pagination.params], queryFn: () => getExportsPage(pagination.params) })
+  const exportMutation = useMutation({ mutationFn: () => createExport(reportType, filters), onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['exports'] }) })
+
+  function filterSubmit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const f = new FormData(event.currentTarget); setFilters(Object.fromEntries(['date_from', 'date_to', 'status'].map((key) => [key, formString(f, key)]).filter(([, value]) => value))) }
 
   return (
-    <ModulePage description="Run operational reports and export CSV files." title="Reports & Exports" planned={['Add report-specific filters.', 'Add export creation/list/download controls.']}>
-      <Panel icon={<FileBarChart size={20} />} title="Report Entry Points">
-        <RecordList
-          items={[
-            'Donation report',
-            'Campaign report',
-            'Beneficiary report',
-            'Case file report',
-            'Distribution report',
-            'Inventory report',
-            'Audit log report',
-            'CSV exports',
-          ]}
-          label="report entry points"
-          render={(item) => item}
-        />
+    <ModulePage description="Run filtered operational reports, inspect their complete payload, and create downloadable CSV exports." title="Reports & Exports">
+      <Panel icon={<FileBarChart size={20} />} title="Report Runner"><form className="space-y-4" onSubmit={filterSubmit}><SelectField defaultValue={reportType} label="Report" name="report_type" onChange={(e) => setReportType(e.target.value as ReportType)} options={[...reportTypes]} optionLabels={{ 'case-files': 'Case files', 'audit-logs': 'Audit logs' }} /><FormGrid><TextField label="From" name="date_from" type="date" /><TextField label="To" name="date_to" type="date" /><TextField label="Status" name="status" /></FormGrid><FormFooter isPending={report.isFetching} submitLabel="Run report" /><SmallButton onClick={() => exportMutation.mutate()}>Create CSV export</SmallButton><MutationState isError={report.isError || exportMutation.isError} isSuccess={exportMutation.isSuccess} /></form>
       </Panel>
-      <Panel icon={<ListChecks size={20} />} title="Current Dashboard Snapshot">
-        {dashboardReport.data ? (
-          <KeyValueRows
-            rows={[
-              ['Donations this month', `${dashboardReport.data.metrics.total_donations_this_month} EGP`],
-              ['Active campaigns', String(dashboardReport.data.metrics.active_campaigns)],
-              ['Pending cases', String(dashboardReport.data.metrics.pending_cases)],
-              ['Low stock items', String(dashboardReport.data.metrics.low_stock_items)],
-            ]}
-          />
-        ) : (
-          <LoadingOrEmpty isError={dashboardReport.isError} isLoading={dashboardReport.isPending} label="Loading report snapshot" />
-        )}
-      </Panel>
+      <Panel icon={<ListChecks size={20} />} title={`${reportType} Report`}>{report.data ? <JsonBlock label="Report data" value={report.data} /> : <LoadingOrEmpty isError={report.isError} isLoading={report.isPending} label="Loading report" />}</Panel>
+      <Panel icon={<FileText size={20} />} title="Exports"><RecordList isError={exports.isError} isLoading={exports.isPending} items={exports.data?.data} label="exports" render={(record) => <div className="flex items-center justify-between gap-2"><span><StatusBadge status={record.status} /> {record.report_type} — {formatDate(record.created_at)}</span>{record.status === 'completed' ? <SmallButton onClick={() => void downloadExport(record)}>Download</SmallButton> : null}</div>} /><PaginationControls meta={exports.data?.meta} pagination={pagination} /></Panel>
     </ModulePage>
   )
 }
 
 function PublicPortalSettingsPage() {
-  return (
-    <PlaceholderModulePage
-      icon={<Settings size={20} />}
-      planned={['Add settings form for portal visibility, campaign progress, contact info, public reports, and donation intent toggle.', 'Add link to /public preview.']}
-      title="Public Portal Settings"
-      description="Public portal APIs exist, and this route is reserved for the authenticated settings form in Slice 11.7."
-    />
-  )
+  const { me } = useOutletContext<{ me: CurrentUser }>()
+  const settings = useQuery({ queryKey: ['public-portal-settings'], queryFn: getPublicPortalSettings })
+  const queryClient = useQueryClient()
+  const save = useMutation({ mutationFn: updatePublicPortalSettings, onSuccess: () => void queryClient.invalidateQueries({ queryKey: ['public-portal-settings'] }) })
+  function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const f = new FormData(event.currentTarget); save.mutate({ enabled: f.get('enabled') === 'on', show_donation_totals: f.get('show_donation_totals') === 'on', show_campaign_progress: f.get('show_campaign_progress') === 'on', show_completed_campaigns: f.get('show_completed_campaigns') === 'on', show_contact_info: f.get('show_contact_info') === 'on', donations_enabled: f.get('donations_enabled') === 'on', reports_enabled: f.get('reports_enabled') === 'on', contact_email: formNullable(f, 'contact_email'), contact_phone: formNullable(f, 'contact_phone'), about: formNullable(f, 'about') }) }
+  if (settings.isPending) return <LoadingState label="Loading public portal settings" />
+  return <ModulePage description="Control exactly what the public transparency portal exposes." title="Public Portal Settings"><Panel icon={<Settings size={20} />} title="Visibility & Contact"><form className="space-y-4" key={String(settings.data?.enabled)} onSubmit={submit}>
+    <div className="grid gap-2 md:grid-cols-2">{['enabled', 'show_donation_totals', 'show_campaign_progress', 'show_completed_campaigns', 'show_contact_info', 'donations_enabled', 'reports_enabled'].map((key) => <label className="flex items-center gap-2 rounded-md border border-[#d9e1de] p-3 text-sm" key={key}><input defaultChecked={Boolean(settings.data?.[key as keyof typeof settings.data])} name={key} type="checkbox" /> {key.replaceAll('_', ' ')}</label>)}</div><FormGrid><TextField defaultValue={settings.data?.contact_email ?? ''} label="Contact email" name="contact_email" type="email" /><TextField defaultValue={settings.data?.contact_phone ?? ''} label="Contact phone" name="contact_phone" /></FormGrid><TextAreaField defaultValue={settings.data?.about ?? ''} label="About" name="about" />{me.permissions?.includes('public_portal_settings.update') ? <FormFooter isPending={save.isPending} submitLabel="Save public settings" /> : null}<MutationState isError={save.isError} isSuccess={save.isSuccess} /><a className="inline-block text-sm font-medium text-[#236b55] underline" href="/public" target="_blank" rel="noreferrer">Open public portal preview</a></form></Panel></ModulePage>
 }
 
 function NotificationsPage() {
-  const notifications = useQuery({ queryKey: ['notifications'], queryFn: getNotifications })
+  const { me } = useOutletContext<{ me: CurrentUser }>()
+  const queryClient = useQueryClient()
+  const pagination = useListPagination()
+  const notifications = useQuery({ queryKey: ['notifications', pagination.params], queryFn: () => getNotificationsPage(pagination.params) })
   const preferences = useQuery({ queryKey: ['notification-preferences'], queryFn: getNotificationPreferences })
+  const markRead = useMutation({ mutationFn: markNotificationRead, onSuccess: refresh })
+  const markAll = useMutation({ mutationFn: markAllNotificationsRead, onSuccess: refresh })
+  const savePreferences = useMutation({ mutationFn: updateNotificationPreferences, onSuccess: refresh })
+  function refresh() { void queryClient.invalidateQueries({ queryKey: ['notifications'] }); void queryClient.invalidateQueries({ queryKey: ['notification-preferences'] }); void queryClient.invalidateQueries({ queryKey: ['notifications-unread-count'] }) }
+  function preferenceSubmit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); const f = new FormData(event.currentTarget); savePreferences.mutate((preferences.data ?? []).map((p) => ({ category: p.category, database_enabled: f.get(`${p.category}.database`) === 'on', email_enabled: f.get(`${p.category}.email`) === 'on' }))) }
 
   return (
-    <ModulePage description="Review operational notifications and channel preferences." title="Notifications" planned={['Add full inbox filters.', 'Add preferences update form.']}>
+    <ModulePage description="Review operational notifications, mark them read, and manage channel preferences." title="Notifications">
       <Panel icon={<Bell size={20} />} title="Recent Notifications">
+        {me.permissions?.includes('notifications.update') ? <div className="mb-3"><SmallButton onClick={() => markAll.mutate()}>Mark all read</SmallButton></div> : null}
         <RecordList
           isError={notifications.isError}
           isLoading={notifications.isPending}
-          items={notifications.data}
+          items={notifications.data?.data}
           label="notifications"
           render={(notification) => (
-            <>
+            <div className="flex items-start justify-between gap-2"><span>
               <StatusBadge status={notification.severity} /> {notification.title} - {notification.category} - {notification.read_at ? 'read' : 'unread'}
-            </>
+            </span>{!notification.read_at && me.permissions?.includes('notifications.update') ? <SmallButton onClick={() => markRead.mutate(notification.id)}>Mark read</SmallButton> : null}</div>
           )}
         />
+        <PaginationControls meta={notifications.data?.meta} pagination={pagination} />
       </Panel>
       <Panel icon={<Settings size={20} />} title="Notification Preferences">
-        <RecordList
-          isError={preferences.isError}
-          isLoading={preferences.isPending}
-          items={preferences.data}
-          label="notification preferences"
-          render={(preference) => `${preference.category} - database ${preference.database_enabled ? 'on' : 'off'} - email ${preference.email_enabled ? 'on' : 'off'}`}
-        />
+        {preferences.isPending ? <LoadingState label="Loading notification preferences" /> : <form className="space-y-3" onSubmit={preferenceSubmit}>{(preferences.data ?? []).map((p) => <div className="grid grid-cols-3 items-center gap-2 rounded-md border border-[#d9e1de] p-3 text-sm" key={p.category}><span className="font-medium">{p.category}</span><label><input defaultChecked={p.database_enabled} name={`${p.category}.database`} type="checkbox" /> In-app</label><label><input defaultChecked={p.email_enabled} name={`${p.category}.email`} type="checkbox" /> Email</label></div>)}{me.permissions?.includes('notification_preferences.update') ? <FormFooter isPending={savePreferences.isPending} submitLabel="Save preferences" /> : null}<MutationState isError={savePreferences.isError} isSuccess={savePreferences.isSuccess} /></form>}
       </Panel>
     </ModulePage>
   )
@@ -2640,16 +2867,6 @@ function SystemPage() {
       </Panel>
       <Panel icon={<CalendarClock size={20} />} title="Scheduled Jobs">
         <RecordList isError={scheduledJobs.isError} isLoading={scheduledJobs.isPending} items={scheduledJobs.data} label="scheduled jobs" render={(job) => `${job.name} - ${job.command} - ${job.frequency}`} />
-      </Panel>
-    </ModulePage>
-  )
-}
-
-function PlaceholderModulePage({ description, icon, planned, title }: { description: string; icon: ReactNode; planned: string[]; title: string }) {
-  return (
-    <ModulePage description={description} planned={planned} title={title}>
-      <Panel icon={icon} title={`${title} Controls`}>
-        <EmptyState title="Controls queued for Phase 11" />
       </Panel>
     </ModulePage>
   )
@@ -2685,6 +2902,14 @@ function PhaseNotice({ items }: { items: string[] }) {
 }
 
 function Panel({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+  const { me } = useOutletContext<{ me: CurrentUser }>()
+  const location = useLocation()
+  const writePermissions = panelWritePermissions(location.pathname, title)
+
+  if (writePermissions && !canAccessAny(me.permissions, writePermissions)) {
+    return null
+  }
+
   return (
     <section className="rounded-md border border-[#d9e1de] bg-white p-5">
       <div className="mb-4 flex items-center gap-2 text-[#10201a]">
@@ -2742,6 +2967,78 @@ function RecordList<T>({
         </li>
       ))}
     </ul>
+  )
+}
+
+export type ListPaginationState = {
+  page: number
+  perPage: number
+  search: string
+  params: PaginationParams
+  setPage: (value: number) => void
+  setPerPage: (value: number) => void
+  setSearch: (value: string) => void
+  setFilter: (key: string, value: string) => void
+}
+
+function useListPagination(prefix = ''): ListPaginationState {
+  const [searchParams, setSearchParams] = useSearchParams()
+  const pageKey = `${prefix}page`
+  const perPageKey = `${prefix}per_page`
+  const searchKey = `${prefix}search`
+  const { page, perPage, search } = readPagination(searchParams, prefix)
+  const filterKeys = ['status', 'branch_id', 'warehouse_id', 'campaign_id', 'category', 'date_from', 'date_to', 'severity', 'movement_type']
+  const filters = Object.fromEntries(filterKeys.map((key) => [key, searchParams.get(`${prefix}${key}`)]).filter(([, value]) => value))
+  const params: PaginationParams = { page, per_page: perPage, ...(search ? { search } : {}), ...filters }
+  const update = (next: { page?: number; perPage?: number; search?: string }) => {
+    setSearchParams((current) => {
+      const updated = new URLSearchParams(current)
+      updated.set(pageKey, String(next.page ?? page))
+      updated.set(perPageKey, String(next.perPage ?? perPage))
+      if (next.search !== undefined) {
+        if (next.search) updated.set(searchKey, next.search)
+        else updated.delete(searchKey)
+      }
+      return updated
+    })
+  }
+
+  const setFilter = (key: string, value: string) => setSearchParams((current) => {
+    const updated = new URLSearchParams(current)
+    if (value) updated.set(`${prefix}${key}`, value)
+    else updated.delete(`${prefix}${key}`)
+    updated.set(pageKey, '1')
+    return updated
+  })
+
+  return { page, perPage, search, params, setPage: (value: number) => update({ page: value }), setPerPage: (value: number) => update({ page: 1, perPage: value }), setSearch: (value: string) => update({ page: 1, search: value }), setFilter }
+}
+
+export function PaginationControls({ meta, pagination }: { meta: PaginationMeta | undefined; pagination: ListPaginationState }) {
+  const [searchValue, setSearchValue] = useState(pagination.search)
+
+  useEffect(() => setSearchValue(pagination.search), [pagination.search])
+  useEffect(() => {
+    if (meta && meta.last_page > 0 && pagination.page > meta.last_page) pagination.setPage(meta.last_page)
+  }, [meta, pagination])
+
+  return (
+    <nav aria-label="Pagination" className="mt-4 space-y-3 border-t border-[#edf1ef] pt-4 text-sm">
+      <form className="flex gap-2" onSubmit={(event) => { event.preventDefault(); pagination.setSearch(searchValue.trim()) }}><input aria-label="Search records" className="min-w-0 flex-1 rounded-md border border-[#c8d4cf] bg-white px-3 py-2" onChange={(event) => setSearchValue(event.target.value)} placeholder="Search records" value={searchValue} /><button className="rounded-md border border-[#c8d4cf] bg-white px-3 py-2 font-medium text-[#29483d]" type="submit">Search</button>{pagination.search ? <button className="rounded-md border border-[#c8d4cf] bg-white px-3 py-2 text-[#52645e]" onClick={() => { setSearchValue(''); pagination.setSearch('') }} type="button">Clear</button> : null}</form>
+      {meta && meta.total > 0 ? <div className="flex flex-wrap items-center justify-between gap-3"><p className="text-[#52645e]">{meta.from ?? 0}-{meta.to ?? 0} of {meta.total}</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <label className="flex items-center gap-2 text-[#52645e]">Rows
+          <select aria-label="Rows per page" className="rounded-md border border-[#c8d4cf] bg-white px-2 py-1.5" onChange={(event) => pagination.setPerPage(Number(event.target.value))} value={pagination.perPage}>
+            {[15, 25, 50, 100].map((size) => <option key={size} value={size}>{size}</option>)}
+          </select>
+        </label>
+        <button className="rounded-md border border-[#c8d4cf] px-2 py-1.5 disabled:opacity-40" disabled={meta.current_page <= 1} onClick={() => pagination.setPage(1)} type="button">First</button>
+        <button className="rounded-md border border-[#c8d4cf] px-2 py-1.5 disabled:opacity-40" disabled={meta.current_page <= 1} onClick={() => pagination.setPage(meta.current_page - 1)} type="button">Previous</button>
+        <span className="min-w-24 text-center text-[#29483d]">Page {meta.current_page} of {meta.last_page}</span>
+        <button className="rounded-md border border-[#c8d4cf] px-2 py-1.5 disabled:opacity-40" disabled={meta.current_page >= meta.last_page} onClick={() => pagination.setPage(meta.current_page + 1)} type="button">Next</button>
+        <button className="rounded-md border border-[#c8d4cf] px-2 py-1.5 disabled:opacity-40" disabled={meta.current_page >= meta.last_page} onClick={() => pagination.setPage(meta.last_page)} type="button">Last</button>
+      </div></div> : <p className="text-[#52645e]">No matching records</p>}
+    </nav>
   )
 }
 
@@ -2879,6 +3176,14 @@ function FormFooter({
   onCancel?: () => void
   submitLabel: string
 }) {
+  const { me } = useOutletContext<{ me: CurrentUser }>()
+  const location = useLocation()
+  const permission = formPermission(location.pathname, submitLabel)
+
+  if (permission && !me.permissions?.includes(permission)) {
+    return null
+  }
+
   return (
     <div className="flex flex-wrap items-center gap-2">
       <button className="rounded-md bg-[#236b55] px-4 py-2 text-sm font-medium text-white disabled:cursor-not-allowed disabled:bg-[#8ca79d]" disabled={isPending} type="submit">
@@ -2891,6 +3196,18 @@ function FormFooter({
       ) : null}
     </div>
   )
+}
+
+function formPermission(path: string, label: string) {
+  const module = path.split('/').filter(Boolean)[0]
+  if (module === 'organization') return 'organization.update'
+  if (/family member/i.test(label)) return 'beneficiary_family.manage'
+  if (/note/i.test(label)) return 'case_notes.create'
+  if (/document/i.test(label)) return 'case_documents.upload'
+  if (/allocation/i.test(label)) return 'donation_allocations.manage'
+  const action = /^(Create|Invite|Add|Upload)/i.test(label) ? 'create' : 'update'
+  const map: Record<string, string> = { branches: 'branches', users: 'users', roles: 'roles', beneficiaries: 'beneficiaries', 'case-files': 'case_files', donors: 'donors', campaigns: 'campaigns', donations: 'donations', warehouses: 'warehouses', 'inventory-items': 'inventory_items', 'aid-batches': 'aid_batches' }
+  return map[module] ? `${map[module]}.${action}` : undefined
 }
 
 function MutationState({ isError, isSuccess }: { isError: boolean; isSuccess: boolean }) {
@@ -2906,11 +3223,50 @@ function MutationState({ isError, isSuccess }: { isError: boolean; isSuccess: bo
 }
 
 function SmallButton({ children, danger, onClick }: { children: ReactNode; danger?: boolean; onClick: () => void }) {
+  const { me } = useOutletContext<{ me: CurrentUser }>()
+  const location = useLocation()
+  const permission = buttonPermission(location.pathname, typeof children === 'string' ? children : '')
+
+  if (permission && !me.permissions?.includes(permission)) {
+    return null
+  }
+
   return (
     <button className={`rounded-md border px-3 py-1.5 text-xs font-medium ${danger ? 'border-[#e8b8b0] bg-[#fff1ef] text-[#a44a3f]' : 'border-[#c8d4cf] bg-white text-[#29483d]'}`} onClick={onClick} type="button">
       {children}
     </button>
   )
+}
+
+function panelWritePermissions(path: string, title: string) {
+  if (!/^(Create|Edit) /.test(title)) return null
+  const module = path.split('/').filter(Boolean)[0]
+  const map: Record<string, string[]> = {
+    organization: ['organization.update'],
+    branches: ['branches.create', 'branches.update'], users: ['users.create', 'users.update'], roles: ['roles.create', 'roles.update'],
+    beneficiaries: ['beneficiaries.create', 'beneficiaries.update'], 'case-files': ['case_files.create', 'case_files.update'],
+    donors: ['donors.create', 'donors.update'], campaigns: ['campaigns.create', 'campaigns.update'], donations: ['donations.create', 'donations.update'],
+    warehouses: ['warehouses.create', 'warehouses.update'], 'inventory-items': ['inventory_items.create', 'inventory_items.update'], 'aid-batches': ['aid_batches.create', 'aid_batches.update'],
+  }
+  if (title === 'Allocation Builder') return ['donation_allocations.manage']
+  return map[module] ?? null
+}
+
+function buttonPermission(path: string, label: string) {
+  const module = path.split('/').filter(Boolean)[0]
+  const updateMap: Record<string, string> = { branches: 'branches.update', users: 'users.update', roles: 'roles.update', beneficiaries: 'beneficiaries.update', 'case-files': 'case_files.update', donors: 'donors.update', campaigns: 'campaigns.update', donations: 'donations.update' }
+  const deleteMap: Record<string, string> = { branches: 'branches.delete', roles: 'roles.delete', beneficiaries: 'beneficiaries.delete', 'case-files': 'case_files.delete', donors: 'donors.delete', campaigns: 'campaigns.delete' }
+  if (label === 'Edit') return updateMap[module]
+  if (label.startsWith('Delete')) return deleteMap[module]
+  const exact: Record<string, string> = {
+    Enable: 'users.update', Disable: 'users.disable', 'Submit review': module === 'beneficiaries' ? 'beneficiaries.submit_review' : 'case_files.review',
+    Approve: module === 'beneficiaries' ? 'beneficiaries.approve' : 'case_files.approve', Reject: module === 'beneficiaries' ? 'beneficiaries.reject' : 'case_files.reject',
+    Suspend: module === 'beneficiaries' ? 'beneficiaries.suspend' : 'case_files.suspend', Reactivate: 'beneficiaries.reactivate', Close: 'case_files.close', Reopen: 'case_files.reopen',
+    Activate: 'campaigns.activate', Pause: 'campaigns.pause', Complete: 'campaigns.complete', Cancel: module === 'campaigns' ? 'campaigns.cancel' : 'donations.cancel',
+    'Confirm payment': 'donations.confirm', 'Generate receipt': 'receipts.generate', 'Regenerate receipt': 'receipts.generate', Download: module === 'case-files' ? 'case_documents.download' : 'exports.download',
+    'Create CSV export': 'reports.export',
+  }
+  return exact[label]
 }
 
 function JsonBlock({ label, value }: { label: string; value: Record<string, unknown> | null }) {
@@ -3020,15 +3376,17 @@ function NotificationItems({ notifications, onMarkRead }: { notifications: Opera
 }
 
 function canSeeNavItem(user: CurrentUser, item: NavItem) {
-  if (!item.permissions || item.permissions.length === 0) {
-    return true
-  }
+  return canAccessAny(user.permissions, item.permissions)
+}
 
-  if (!user.permissions || user.permissions.length === 0) {
-    return true
-  }
+function PermissionGate({ children, permissions }: { children: ReactNode; permissions: string[] }) {
+  const { me } = useOutletContext<{ me: CurrentUser }>()
 
-  return item.permissions.some((permission) => user.permissions?.includes(permission))
+  return canAccessAny(me.permissions, permissions) ? children : <UnauthorizedState title="You do not have permission to view this page" />
+}
+
+function guarded(element: ReactNode, ...permissions: string[]) {
+  return <PermissionGate permissions={permissions}>{element}</PermissionGate>
 }
 
 function statusClass(status: string) {
@@ -3147,31 +3505,31 @@ const router = createBrowserRouter([
     element: <AdminRouteGate />,
     children: [
       { index: true, element: <Navigate replace to="/dashboard" /> },
-      { path: 'dashboard', element: <DashboardPage /> },
-      { path: 'organization', element: <OrganizationPage /> },
-      { path: 'branches', element: <BranchesPage /> },
-      { path: 'users', element: <UsersPage /> },
-      { path: 'roles', element: <RolesPage /> },
-      { path: 'audit-logs', element: <AuditLogsPage /> },
-      { path: 'beneficiaries', element: <BeneficiariesPage /> },
-      { path: 'case-files', element: <CaseFilesPage /> },
-      { path: 'donors', element: <DonorsPage /> },
-      { path: 'campaigns', element: <CampaignsPage /> },
-      { path: 'donations', element: <DonationsPage /> },
-      { path: 'finance/payments', element: <PaymentsPage /> },
-      { path: 'warehouses', element: <WarehousesPage /> },
-      { path: 'inventory-items', element: <InventoryItemsPage /> },
-      { path: 'stock/summary', element: <StockSummaryPage /> },
-      { path: 'stock/lots', element: <StockLotsPage /> },
-      { path: 'stock/movements', element: <StockMovementsPage /> },
-      { path: 'stock/low-stock', element: <LowStockPage /> },
-      { path: 'stock/expiring', element: <ExpiringStockPage /> },
-      { path: 'aid-batches', element: <AidBatchesPage /> },
-      { path: 'aid-distributions', element: <AidDistributionsPage /> },
-      { path: 'reports', element: <ReportsPage /> },
-      { path: 'settings/public-portal', element: <PublicPortalSettingsPage /> },
-      { path: 'notifications', element: <NotificationsPage /> },
-      { path: 'system', element: <SystemPage /> },
+      { path: 'dashboard', element: guarded(<DashboardPage />, 'dashboard.view') },
+      { path: 'organization', element: guarded(<OrganizationPage />, 'organization.view') },
+      { path: 'branches', element: guarded(<BranchesPage />, 'branches.view') },
+      { path: 'users', element: guarded(<UsersPage />, 'users.view') },
+      { path: 'roles', element: guarded(<RolesPage />, 'roles.view', 'permissions.view') },
+      { path: 'audit-logs', element: guarded(<AuditLogsPage />, 'audit_logs.view') },
+      { path: 'beneficiaries', element: guarded(<BeneficiariesPage />, 'beneficiaries.view') },
+      { path: 'case-files', element: guarded(<CaseFilesPage />, 'case_files.view') },
+      { path: 'donors', element: guarded(<DonorsPage />, 'donors.view') },
+      { path: 'campaigns', element: guarded(<CampaignsPage />, 'campaigns.view') },
+      { path: 'donations', element: guarded(<DonationsPage />, 'donations.view') },
+      { path: 'finance/payments', element: guarded(<PaymentsPage />, 'payment_transactions.view', 'receipts.view') },
+      { path: 'warehouses', element: guarded(<WarehousesPage />, 'warehouses.view') },
+      { path: 'inventory-items', element: guarded(<InventoryItemsPage />, 'inventory_items.view') },
+      { path: 'stock/summary', element: guarded(<StockSummaryPage />, 'stock_reports.view') },
+      { path: 'stock/lots', element: guarded(<StockLotsPage />, 'stock_lots.view') },
+      { path: 'stock/movements', element: guarded(<StockMovementsPage />, 'stock_movements.view') },
+      { path: 'stock/low-stock', element: guarded(<LowStockPage />, 'stock_reports.view') },
+      { path: 'stock/expiring', element: guarded(<ExpiringStockPage />, 'stock_reports.view') },
+      { path: 'aid-batches', element: guarded(<AidBatchesPage />, 'aid_batches.view') },
+      { path: 'aid-distributions', element: guarded(<AidDistributionsPage />, 'aid_distributions.view') },
+      { path: 'reports', element: guarded(<ReportsPage />, 'reports.donations.view', 'reports.campaigns.view', 'reports.beneficiaries.view', 'reports.case_files.view', 'reports.distributions.view', 'reports.inventory.view', 'reports.audit_logs.view', 'exports.view') },
+      { path: 'settings/public-portal', element: guarded(<PublicPortalSettingsPage />, 'public_portal_settings.view') },
+      { path: 'notifications', element: guarded(<NotificationsPage />, 'notifications.view') },
+      { path: 'system', element: guarded(<SystemPage />, 'system.queue.view', 'system.scheduler.view') },
       { path: '*', element: <Navigate replace to="/dashboard" /> },
     ],
   },

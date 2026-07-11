@@ -1,4 +1,5 @@
 import { apiRequest } from './apiClient'
+import { paginatedPath, type PaginatedResponse, type PaginationParams } from './pagination'
 
 type CollectionResponse<T> = {
   data: T[]
@@ -44,6 +45,7 @@ export async function getNotifications() {
 
   return response.data
 }
+export function getNotificationsPage(params: PaginationParams) { return apiRequest<PaginatedResponse<OperationalNotification>>(paginatedPath('/notifications', params)) }
 
 export async function getUnreadNotificationCount() {
   const response = await apiRequest<SingleResponse<{ count: number }>>('/notifications/unread-count')
@@ -69,6 +71,15 @@ export async function markAllNotificationsRead() {
 
 export async function getNotificationPreferences() {
   const response = await apiRequest<CollectionResponse<NotificationPreference>>('/notification-preferences')
+
+  return response.data
+}
+
+export async function updateNotificationPreferences(preferences: NotificationPreference[]) {
+  const response = await apiRequest<CollectionResponse<NotificationPreference>>('/notification-preferences', {
+    method: 'PATCH',
+    body: JSON.stringify({ preferences }),
+  })
 
   return response.data
 }

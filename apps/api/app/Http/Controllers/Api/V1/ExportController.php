@@ -19,6 +19,9 @@ class ExportController extends Controller
         $exports = Export::query()
             ->with('user')
             ->where('organization_id', request()->user()->organization_id)
+            ->when(request('search'), fn ($query, string $search) => $query->where(function ($query) use ($search): void {
+                $query->where('report_type', 'like', "%{$search}%")->orWhere('status', 'like', "%{$search}%");
+            }))
             ->latest()
             ->paginate(request()->integer('per_page', 15));
 

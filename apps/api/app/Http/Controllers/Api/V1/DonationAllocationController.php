@@ -21,6 +21,9 @@ class DonationAllocationController extends Controller
 
         $allocations = $donation->allocations()
             ->with(['campaign', 'beneficiary', 'caseFile'])
+            ->when(request('search'), fn ($query, string $search) => $query->where(function ($query) use ($search): void {
+                $query->where('allocation_type', 'like', "%{$search}%")->orWhere('notes', 'like', "%{$search}%");
+            }))
             ->latest()
             ->paginate(request()->integer('per_page', 15));
 

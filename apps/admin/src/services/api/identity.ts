@@ -1,4 +1,5 @@
 import { apiRequest } from './apiClient'
+import { paginatedPath, type PaginatedResponse, type PaginationParams } from './pagination'
 
 type CollectionResponse<T> = {
   data: T[]
@@ -142,10 +143,11 @@ export async function updateOrganization(input: OrganizationInput) {
 }
 
 export async function getBranches() {
-  const response = await apiRequest<CollectionResponse<Branch>>('/branches')
+  const response = await apiRequest<CollectionResponse<Branch>>('/branches?per_page=100')
 
   return response.data
 }
+export function getBranchesPage(params: PaginationParams) { return apiRequest<PaginatedResponse<Branch>>(paginatedPath('/branches', params)) }
 
 export async function createBranch(input: BranchInput) {
   const response = await apiRequest<SingleResponse<Branch>>('/branches', {
@@ -170,10 +172,11 @@ export async function deleteBranch(id: number) {
 }
 
 export async function getUsers() {
-  const response = await apiRequest<CollectionResponse<User>>('/users')
+  const response = await apiRequest<CollectionResponse<User>>('/users?per_page=100')
 
   return response.data
 }
+export function getUsersPage(params: PaginationParams) { return apiRequest<PaginatedResponse<User>>(paginatedPath('/users', params)) }
 
 export async function createUser(input: UserInput) {
   const response = await apiRequest<SingleResponse<User>>('/users', {
@@ -215,10 +218,11 @@ export async function syncUserRoles(id: number, roles: string[]) {
 }
 
 export async function getRoles() {
-  const response = await apiRequest<CollectionResponse<Role>>('/roles')
+  const response = await apiRequest<CollectionResponse<Role>>('/roles?per_page=100')
 
   return response.data
 }
+export function getRolesPage(params: PaginationParams) { return apiRequest<PaginatedResponse<Role>>(paginatedPath('/roles', params)) }
 
 export async function createRole(input: RoleInput) {
   const response = await apiRequest<SingleResponse<Role>>('/roles', {
@@ -253,3 +257,4 @@ export async function getAuditLogs() {
 
   return response.data
 }
+export function getAuditLogsPage(params: PaginationParams) { return apiRequest<PaginatedResponse<AuditLog>>(paginatedPath('/audit-logs', params)) }

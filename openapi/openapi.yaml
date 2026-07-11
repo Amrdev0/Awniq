@@ -2,7 +2,9 @@ openapi: 3.0.3
 info:
   title: Awniq API
   version: 0.10.0
-  description: API contract snapshot for the identity, case-management, finance, inventory, aid distribution, reporting, public transparency, notification automation, and release-readiness foundations.
+  description: |
+    API contract snapshot for the identity, case-management, finance, inventory, aid distribution, reporting, public transparency, notification automation, and release-readiness foundations.
+    Growing collection endpoints accept `page`, `per_page` (1-100), and documented filters. Paginated responses contain `data`, navigation `links`, and `meta` with the current range and total.
 servers:
   - url: http://localhost:8000/api/v1
 security:
@@ -1441,6 +1443,23 @@ components:
       scheme: bearer
       bearerFormat: Sanctum
   parameters:
+    Page:
+      name: page
+      in: query
+      description: One-based result page. Invalid values are normalized to 1.
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+    PerPage:
+      name: per_page
+      in: query
+      description: Rows per page. Values are clamped to the global maximum of 100.
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 15
     Search:
       name: search
       in: query
@@ -1570,6 +1589,26 @@ components:
       schema:
         type: string
   schemas:
+    PaginationMeta:
+      type: object
+      required: [current_page, last_page, per_page, total]
+      properties:
+        current_page:
+          type: integer
+        from:
+          type: integer
+          nullable: true
+        last_page:
+          type: integer
+        path:
+          type: string
+        per_page:
+          type: integer
+        to:
+          type: integer
+          nullable: true
+        total:
+          type: integer
     LoginRequest:
       type: object
       required: [email, password]

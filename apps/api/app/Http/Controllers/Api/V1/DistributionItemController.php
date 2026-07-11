@@ -21,6 +21,11 @@ class DistributionItemController extends Controller
 
         $items = $distribution->items()
             ->with(['inventoryItem', 'stockLot', 'reservations.stockLot'])
+            ->when(request('search'), fn ($query, string $search) => $query->where(function ($query) use ($search): void {
+                $query->where('notes', 'like', "%{$search}%")
+                    ->orWhere('currency', 'like', "%{$search}%")
+                    ->orWhereHas('inventoryItem', fn ($itemQuery) => $itemQuery->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%"));
+            }))
             ->latest()
             ->paginate(request()->integer('per_page', 15));
 

@@ -1,4 +1,5 @@
 import { apiRequest } from './apiClient'
+import { paginatedPath, type PaginatedResponse, type PaginationParams } from './pagination'
 
 type CollectionResponse<T> = {
   data: T[]
@@ -190,10 +191,11 @@ export type ConfirmDonationInput = {
 }
 
 export async function getDonors() {
-  const response = await apiRequest<CollectionResponse<Donor>>('/donors')
+  const response = await apiRequest<CollectionResponse<Donor>>('/donors?per_page=100')
 
   return response.data
 }
+export function getDonorsPage(params: PaginationParams) { return apiRequest<PaginatedResponse<Donor>>(paginatedPath('/donors', params)) }
 
 export async function getDonor(id: number) {
   const response = await apiRequest<SingleResponse<Donor>>(`/donors/${id}`)
@@ -228,12 +230,14 @@ export async function getDonorDonations(id: number) {
 
   return response.data
 }
+export function getDonorDonationsPage(id: number, params: PaginationParams) { return apiRequest<PaginatedResponse<Donation>>(paginatedPath(`/donors/${id}/donations`, params)) }
 
 export async function getCampaigns() {
-  const response = await apiRequest<CollectionResponse<Campaign>>('/campaigns')
+  const response = await apiRequest<CollectionResponse<Campaign>>('/campaigns?per_page=100')
 
   return response.data
 }
+export function getCampaignsPage(params: PaginationParams) { return apiRequest<PaginatedResponse<Campaign>>(paginatedPath('/campaigns', params)) }
 
 export async function getCampaign(id: number) {
   const response = await apiRequest<SingleResponse<Campaign>>(`/campaigns/${id}`)
@@ -292,6 +296,7 @@ export async function getDonations() {
 
   return response.data
 }
+export function getDonationsPage(params: PaginationParams) { return apiRequest<PaginatedResponse<Donation>>(paginatedPath('/donations', params)) }
 
 export async function getDonation(id: number) {
   const response = await apiRequest<SingleResponse<Donation>>(`/donations/${id}`)
@@ -352,6 +357,7 @@ export async function getDonationAllocations(id: number) {
 
   return response.data
 }
+export function getDonationAllocationsPage(id: number, params: PaginationParams) { return apiRequest<PaginatedResponse<DonationAllocation>>(paginatedPath(`/donations/${id}/allocations`, params)) }
 
 export async function createDonationAllocation(donationId: number, input: DonationAllocationInput) {
   const response = await apiRequest<SingleResponse<DonationAllocation>>(`/donations/${donationId}/allocations`, {
@@ -380,6 +386,7 @@ export async function getDonationPaymentTransactions(donationId: number) {
 
   return response.data
 }
+export function getDonationPaymentTransactionsPage(donationId: number, params: PaginationParams) { return apiRequest<PaginatedResponse<PaymentTransaction>>(paginatedPath(`/donations/${donationId}/payment-transactions`, params)) }
 
 export async function getPaymentTransaction(id: number) {
   const response = await apiRequest<SingleResponse<PaymentTransaction>>(`/payment-transactions/${id}`)

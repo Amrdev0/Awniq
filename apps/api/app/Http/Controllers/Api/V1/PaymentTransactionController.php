@@ -15,6 +15,9 @@ class PaymentTransactionController extends Controller
         $this->assertDonationScope($donation);
 
         $transactions = $donation->paymentTransactions()
+            ->when(request('search'), fn ($query, string $search) => $query->where(function ($query) use ($search): void {
+                $query->where('provider', 'like', "%{$search}%")->orWhere('provider_transaction_id', 'like', "%{$search}%")->orWhere('status', 'like', "%{$search}%");
+            }))
             ->latest()
             ->paginate(request()->integer('per_page', 15));
 

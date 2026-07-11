@@ -1,4 +1,5 @@
 import { apiBlobRequest, apiRequest } from './apiClient'
+import { paginatedPath, type PaginatedResponse, type PaginationParams } from './pagination'
 
 type CollectionResponse<T> = {
   data: T[]
@@ -169,10 +170,11 @@ export type CaseNoteInput = {
 }
 
 export async function getBeneficiaries() {
-  const response = await apiRequest<CollectionResponse<Beneficiary>>('/beneficiaries')
+  const response = await apiRequest<CollectionResponse<Beneficiary>>('/beneficiaries?per_page=100')
 
   return response.data
 }
+export function getBeneficiariesPage(params: PaginationParams) { return apiRequest<PaginatedResponse<Beneficiary>>(paginatedPath('/beneficiaries', params)) }
 
 export async function getBeneficiary(id: number) {
   const response = await apiRequest<SingleResponse<Beneficiary>>(`/beneficiaries/${id}`)
@@ -240,6 +242,7 @@ export async function getBeneficiaryFamilyMembers(beneficiaryId: number) {
 
   return response.data
 }
+export function getBeneficiaryFamilyMembersPage(beneficiaryId: number, params: PaginationParams) { return apiRequest<PaginatedResponse<FamilyMember>>(paginatedPath(`/beneficiaries/${beneficiaryId}/family-members`, params)) }
 
 export async function createFamilyMember(beneficiaryId: number, input: FamilyMemberInput) {
   const response = await apiRequest<SingleResponse<FamilyMember>>(`/beneficiaries/${beneficiaryId}/family-members`, {
@@ -264,10 +267,14 @@ export async function deleteFamilyMember(beneficiaryId: number, familyMemberId: 
 }
 
 export async function getCaseFiles() {
-  const response = await apiRequest<CollectionResponse<CaseFile>>('/case-files')
+  const response = await apiRequest<CollectionResponse<CaseFile>>('/case-files?per_page=100')
 
   return response.data
 }
+export function getCaseFilesPage(params: PaginationParams) { return apiRequest<PaginatedResponse<CaseFile>>(paginatedPath('/case-files', params)) }
+
+export function getCaseNotesPage(caseFileId: number, params: PaginationParams) { return apiRequest<PaginatedResponse<CaseNote>>(paginatedPath(`/case-files/${caseFileId}/notes`, params)) }
+export function getCaseDocumentsPage(caseFileId: number, params: PaginationParams) { return apiRequest<PaginatedResponse<CaseDocument>>(paginatedPath(`/case-files/${caseFileId}/documents`, params)) }
 
 export async function getCaseFile(id: number) {
   const response = await apiRequest<SingleResponse<CaseFile>>(`/case-files/${id}`)

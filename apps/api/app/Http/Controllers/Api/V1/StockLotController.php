@@ -23,6 +23,11 @@ class StockLotController extends Controller
             ->when($request->query('source_type'), fn ($query, string $sourceType) => $query->where('source_type', $sourceType))
             ->when($request->boolean('available_only'), fn ($query) => $query->where('remaining_quantity', '>', 0))
             ->when($request->query('expiring_before'), fn ($query, string $date) => $query->whereDate('expiry_date', '<=', $date))
+            ->when($request->query('search'), fn ($query, string $search) => $query->where(function ($query) use ($search): void {
+                $query->where('source_type', 'like', "%{$search}%")
+                    ->orWhereHas('warehouse', fn ($warehouseQuery) => $warehouseQuery->where('name', 'like', "%{$search}%")->orWhere('code', 'like', "%{$search}%"))
+                    ->orWhereHas('inventoryItem', fn ($itemQuery) => $itemQuery->where('name', 'like', "%{$search}%")->orWhere('sku', 'like', "%{$search}%"));
+            }))
             ->orderByDesc('received_at')
             ->paginate($request->integer('per_page', 15));
 
