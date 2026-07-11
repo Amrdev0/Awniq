@@ -70,7 +70,44 @@ import {
   type FamilyMember,
   type FamilyMemberInput,
 } from '../services/api/cases'
-import { getCampaigns, getDonations, getDonors } from '../services/api/finance'
+import {
+  activateCampaign,
+  cancelCampaign,
+  cancelDonation,
+  completeCampaign,
+  confirmDonation,
+  createCampaign,
+  createDonation,
+  createDonationAllocation,
+  createDonor,
+  deleteCampaign,
+  deleteDonationAllocation,
+  deleteDonor,
+  generateDonationReceipt,
+  getCampaign,
+  getCampaigns,
+  getDonation,
+  getDonationPaymentTransactions,
+  getDonations,
+  getDonor,
+  getDonors,
+  getPaymentTransaction,
+  pauseCampaign,
+  updateCampaign,
+  updateDonation,
+  updateDonationAllocation,
+  updateDonor,
+  type Campaign,
+  type CampaignInput,
+  type ConfirmDonationInput,
+  type Donation,
+  type DonationAllocation,
+  type DonationAllocationInput,
+  type DonationInput,
+  type Donor,
+  type DonorInput,
+  type PaymentTransaction,
+} from '../services/api/finance'
 import {
   createBranch,
   createRole,
@@ -1597,22 +1634,257 @@ function CaseFilesPage() {
 }
 
 function DonorsPage() {
+  const queryClient = useQueryClient()
+  const [selectedDonorId, setSelectedDonorId] = useState<number | null>(null)
+  const [editingDonorId, setEditingDonorId] = useState<number | null>(null)
   const donors = useQuery({ queryKey: ['donors'], queryFn: getDonors })
+  const donorDetail = useQuery({
+    queryKey: ['donor', selectedDonorId],
+    queryFn: () => getDonor(selectedDonorId as number),
+    enabled: selectedDonorId !== null,
+  })
+  const editingDonor = editingDonorId ? donorDetail.data ?? donors.data?.find((donor) => donor.id === editingDonorId) ?? null : null
+
+  function refreshDonors(id?: number | null) {
+    void queryClient.invalidateQueries({ queryKey: ['donors'] })
+
+    if (id) {
+      void queryClient.invalidateQueries({ queryKey: ['donor', id] })
+    }
+  }
+
+  const createMutation = useMutation({
+    mutationFn: createDonor,
+    onSuccess: (donor) => {
+      setSelectedDonorId(donor.id)
+      setEditingDonorId(null)
+      refreshDonors(donor.id)
+    },
+  })
+  const updateMutation = useMutation({
+    mutationFn: ({ id, input }: { id: number; input: DonorInput }) => updateDonor(id, input),
+    onSuccess: (donor) => {
+      setSelectedDonorId(donor.id)
+      setEditingDonorId(null)
+      refreshDonors(donor.id)
+    },
+  })
+  const deleteMutation = useMutation({
+    mutationFn: deleteDonor,
+    onSuccess: (_, id) => {
+      if (selectedDonorId === id) {
+        setSelectedDonorId(null)
+        setEditingDonorId(null)
+      }
+
+      refreshDonors(null)
+    },
+  })
+
+  function buildDonorInput(form: FormData): DonorInput {
+    const preferences = formString(form, 'communication_preferences')
+
+    return {
+      donor_type: formString(form, 'donor_type') as DonorInput['donor_type'],
+      name: formString(form, 'name'),
+      email: formNullable(form, 'email'),
+      phone: formNullable(form, 'phone'),
+      country: formNullable(form, 'country'),
+      city: formNullable(form, 'city'),
+      address: formNullable(form, 'address'),
+      tax_number: formNullable(form, 'tax_number'),
+      notes: formNullable(form, 'notes'),
+      communication_preferences: preferences ? preferences.split(',').map((preference) => preference.trim()).filter(Boolean) : null,
+      status: formNullable(form, 'status') as DonorInput['status'],
+    }
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const input = buildDonorInput(new FormData(event.currentTarget))
+
+    if (editingDonorId) {
+      updateMutation.mutate({ id: editingDonorId, input })
+    } else {
+      createMutation.mutate(input)
+    }
+  }
 
   return (
-    <ModulePage description="Manage donor records and donation history." title="Donors" planned={['Add create/edit/detail pages.', 'Add donor donation history view.']}>
+    <ModulePage description="Manage donor records and donation history." title="Donors">
       <Panel icon={<Users size={20} />} title="Donors">
-        <RecordList isError={donors.isError} isLoading={donors.isPending} items={donors.data} label="donors" render={(donor) => `${donor.name} - ${donor.donor_type} - ${donor.status} - ${donor.donations_count ?? 0} donations`} />
+        <RecordList
+          isError={donors.isError}
+          isLoading={donors.isPending}
+          items={donors.data}
+          label="donors"
+          render={(donor) => (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>
+                <StatusBadge status={donor.status} /> {donor.name} - {donor.donor_type} - {donor.donations_count ?? 0} donations
+              </span>
+              <span className="flex flex-wrap gap-2">
+                <SmallButton onClick={() => setSelectedDonorId(donor.id)}>Details</SmallButton>
+                <SmallButton
+                  onClick={() => {
+                    setSelectedDonorId(donor.id)
+                    setEditingDonorId(donor.id)
+                  }}
+                >
+                  Edit
+                </SmallButton>
+                <SmallButton danger onClick={() => window.confirm(`Delete ${donor.name}?`) && deleteMutation.mutate(donor.id)}>
+                  Delete
+                </SmallButton>
+              </span>
+            </div>
+          )}
+        />
+      </Panel>
+      <Panel icon={<FileText size={20} />} title="Donor Detail">
+        {selectedDonorId ? (
+          donorDetail.data ? (
+            <div className="space-y-4">
+              <KeyValueRows
+                rows={[
+                  ['Name', donorDetail.data.name],
+                  ['Type', donorDetail.data.donor_type],
+                  ['Status', donorDetail.data.status],
+                  ['Email', donorDetail.data.email],
+                  ['Phone', donorDetail.data.phone],
+                  ['Location', [donorDetail.data.city, donorDetail.data.country].filter(Boolean).join(', ') || null],
+                  ['Tax number', donorDetail.data.tax_number],
+                  ['Donations', String(donorDetail.data.donations_count ?? donorDetail.data.donations?.length ?? 0)],
+                ]}
+              />
+              <p className="text-sm leading-6 text-[#52645e]">{donorDetail.data.notes ?? 'No donor notes.'}</p>
+              <RecordList items={donorDetail.data.donations ?? []} label="donor donations" render={(donation) => `${donation.donation_number} - ${formatMoney(donation.amount, donation.currency)} - ${donation.payment_status}`} />
+            </div>
+          ) : (
+            <LoadingOrEmpty isError={donorDetail.isError} isLoading={donorDetail.isPending} label="Loading donor" />
+          )
+        ) : (
+          <EmptyState title="Select a donor" />
+        )}
+      </Panel>
+      <Panel icon={<Settings size={20} />} title={editingDonor ? `Edit ${editingDonor.name}` : 'Create Donor'}>
+        <form className="space-y-4" key={editingDonor?.id ?? 'new-donor'} onSubmit={handleSubmit}>
+          <FormGrid>
+            <SelectField defaultValue={editingDonor?.donor_type ?? 'individual'} label="Type" name="donor_type" options={['individual', 'company', 'institution', 'anonymous']} />
+            <TextField defaultValue={editingDonor?.name ?? ''} label="Name" name="name" required />
+            <TextField defaultValue={editingDonor?.email ?? ''} label="Email" name="email" type="email" />
+            <TextField defaultValue={editingDonor?.phone ?? ''} label="Phone" name="phone" />
+            <TextField defaultValue={editingDonor?.country ?? ''} label="Country" name="country" />
+            <TextField defaultValue={editingDonor?.city ?? ''} label="City" name="city" />
+            <TextField defaultValue={editingDonor?.tax_number ?? ''} label="Tax number" name="tax_number" />
+            <TextField defaultValue={formatPreferences(editingDonor?.communication_preferences)} label="Communication preferences" name="communication_preferences" />
+            <SelectField defaultValue={editingDonor?.status ?? 'active'} label="Status" name="status" options={['active', 'inactive', 'blocked']} />
+          </FormGrid>
+          <TextAreaField defaultValue={editingDonor?.address ?? ''} label="Address" name="address" />
+          <TextAreaField defaultValue={editingDonor?.notes ?? ''} label="Notes" name="notes" />
+          <FormFooter isPending={createMutation.isPending || updateMutation.isPending} onCancel={editingDonorId ? () => setEditingDonorId(null) : undefined} submitLabel={editingDonor ? 'Save donor' : 'Create donor'} />
+          <MutationState isError={createMutation.isError || updateMutation.isError || deleteMutation.isError} isSuccess={createMutation.isSuccess || updateMutation.isSuccess || deleteMutation.isSuccess} />
+        </form>
       </Panel>
     </ModulePage>
   )
 }
 
 function CampaignsPage() {
+  const queryClient = useQueryClient()
+  const [selectedCampaignId, setSelectedCampaignId] = useState<number | null>(null)
+  const [editingCampaignId, setEditingCampaignId] = useState<number | null>(null)
   const campaigns = useQuery({ queryKey: ['campaigns'], queryFn: getCampaigns })
+  const campaignDetail = useQuery({
+    queryKey: ['campaign', selectedCampaignId],
+    queryFn: () => getCampaign(selectedCampaignId as number),
+    enabled: selectedCampaignId !== null,
+  })
+  const editingCampaign = editingCampaignId ? campaignDetail.data ?? campaigns.data?.find((campaign) => campaign.id === editingCampaignId) ?? null : null
+
+  function refreshCampaigns(id?: number | null) {
+    void queryClient.invalidateQueries({ queryKey: ['campaigns'] })
+    void queryClient.invalidateQueries({ queryKey: ['donations'] })
+
+    if (id) {
+      void queryClient.invalidateQueries({ queryKey: ['campaign', id] })
+    }
+  }
+
+  const createMutation = useMutation({
+    mutationFn: createCampaign,
+    onSuccess: (campaign) => {
+      setSelectedCampaignId(campaign.id)
+      setEditingCampaignId(null)
+      refreshCampaigns(campaign.id)
+    },
+  })
+  const updateMutation = useMutation({
+    mutationFn: ({ id, input }: { id: number; input: CampaignInput }) => updateCampaign(id, input),
+    onSuccess: (campaign) => {
+      setSelectedCampaignId(campaign.id)
+      setEditingCampaignId(null)
+      refreshCampaigns(campaign.id)
+    },
+  })
+  const deleteMutation = useMutation({
+    mutationFn: deleteCampaign,
+    onSuccess: (_, id) => {
+      if (selectedCampaignId === id) {
+        setSelectedCampaignId(null)
+        setEditingCampaignId(null)
+      }
+
+      refreshCampaigns(null)
+    },
+  })
+  const workflowMutation = useMutation({
+    mutationFn: ({ action, id }: { action: 'activate' | 'pause' | 'complete' | 'cancel'; id: number }) => {
+      if (action === 'activate') {
+        return activateCampaign(id)
+      }
+
+      if (action === 'pause') {
+        return pauseCampaign(id)
+      }
+
+      if (action === 'complete') {
+        return completeCampaign(id)
+      }
+
+      return cancelCampaign(id)
+    },
+    onSuccess: (campaign) => refreshCampaigns(campaign.id),
+  })
+
+  function buildCampaignInput(form: FormData): CampaignInput {
+    return {
+      title: formString(form, 'title'),
+      slug: formString(form, 'slug'),
+      description: formNullable(form, 'description'),
+      goal_amount: Number(formString(form, 'goal_amount')),
+      currency: formString(form, 'currency').toUpperCase(),
+      start_date: formString(form, 'start_date'),
+      end_date: formNullable(form, 'end_date'),
+      status: formNullable(form, 'status') as CampaignInput['status'],
+      visibility: formNullable(form, 'visibility') as CampaignInput['visibility'],
+      cover_image: formNullable(form, 'cover_image'),
+    }
+  }
+
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const input = buildCampaignInput(new FormData(event.currentTarget))
+
+    if (editingCampaignId) {
+      updateMutation.mutate({ id: editingCampaignId, input })
+    } else {
+      createMutation.mutate(input)
+    }
+  }
 
   return (
-    <ModulePage description="Manage fundraising campaigns and visibility." title="Campaigns" planned={['Add create/edit/detail pages.', 'Add activate, pause, complete, and cancel actions.']}>
+    <ModulePage description="Manage fundraising campaigns and visibility." title="Campaigns">
       <Panel icon={<Landmark size={20} />} title="Campaigns">
         <RecordList
           isError={campaigns.isError}
@@ -1620,21 +1892,238 @@ function CampaignsPage() {
           items={campaigns.data}
           label="campaigns"
           render={(campaign) => (
-            <>
-              <StatusBadge status={campaign.status} /> {campaign.title} - {campaign.collected_amount}/{campaign.goal_amount} {campaign.currency} - {campaign.visibility}
-            </>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>
+                <StatusBadge status={campaign.status} /> {campaign.title} - {formatMoney(campaign.collected_amount, campaign.currency)}/{formatMoney(campaign.goal_amount, campaign.currency)} - {campaign.visibility}
+              </span>
+              <span className="flex flex-wrap gap-2">
+                <SmallButton onClick={() => setSelectedCampaignId(campaign.id)}>Details</SmallButton>
+                <SmallButton
+                  onClick={() => {
+                    setSelectedCampaignId(campaign.id)
+                    setEditingCampaignId(campaign.id)
+                  }}
+                >
+                  Edit
+                </SmallButton>
+                <SmallButton danger onClick={() => window.confirm(`Delete ${campaign.title}?`) && deleteMutation.mutate(campaign.id)}>
+                  Delete
+                </SmallButton>
+              </span>
+            </div>
           )}
         />
+      </Panel>
+      <Panel icon={<FileText size={20} />} title="Campaign Detail">
+        {selectedCampaignId ? (
+          campaignDetail.data ? (
+            <div className="space-y-4">
+              <KeyValueRows
+                rows={[
+                  ['Title', campaignDetail.data.title],
+                  ['Slug', campaignDetail.data.slug],
+                  ['Status', campaignDetail.data.status],
+                  ['Visibility', campaignDetail.data.visibility],
+                  ['Goal', formatMoney(campaignDetail.data.goal_amount, campaignDetail.data.currency)],
+                  ['Collected', formatMoney(campaignDetail.data.collected_amount, campaignDetail.data.currency)],
+                  ['Progress', `${campaignProgress(campaignDetail.data).toFixed(1)}%`],
+                  ['Dates', `${campaignDetail.data.start_date}${campaignDetail.data.end_date ? ` to ${campaignDetail.data.end_date}` : ''}`],
+                  ['Donations', String(campaignDetail.data.donations_count ?? campaignDetail.data.donations?.length ?? 0)],
+                  ['Allocations', String(campaignDetail.data.allocations_count ?? 0)],
+                ]}
+              />
+              <p className="text-sm leading-6 text-[#52645e]">{campaignDetail.data.description ?? 'No campaign description.'}</p>
+              <div className="flex flex-wrap gap-2">
+                {['draft', 'paused'].includes(campaignDetail.data.status) ? <SmallButton onClick={() => workflowMutation.mutate({ action: 'activate', id: campaignDetail.data.id })}>Activate</SmallButton> : null}
+                {campaignDetail.data.status === 'active' ? <SmallButton onClick={() => workflowMutation.mutate({ action: 'pause', id: campaignDetail.data.id })}>Pause</SmallButton> : null}
+                {['active', 'paused'].includes(campaignDetail.data.status) ? <SmallButton onClick={() => workflowMutation.mutate({ action: 'complete', id: campaignDetail.data.id })}>Complete</SmallButton> : null}
+                {['draft', 'active', 'paused'].includes(campaignDetail.data.status) ? <SmallButton danger onClick={() => workflowMutation.mutate({ action: 'cancel', id: campaignDetail.data.id })}>Cancel</SmallButton> : null}
+              </div>
+              <RecordList items={campaignDetail.data.donations ?? []} label="campaign donations" render={(donation) => `${donation.donation_number} - ${formatMoney(donation.amount, donation.currency)} - ${donation.payment_status}`} />
+            </div>
+          ) : (
+            <LoadingOrEmpty isError={campaignDetail.isError} isLoading={campaignDetail.isPending} label="Loading campaign" />
+          )
+        ) : (
+          <EmptyState title="Select a campaign" />
+        )}
+      </Panel>
+      <Panel icon={<Settings size={20} />} title={editingCampaign ? `Edit ${editingCampaign.title}` : 'Create Campaign'}>
+        <form className="space-y-4" key={editingCampaign?.id ?? 'new-campaign'} onSubmit={handleSubmit}>
+          <FormGrid>
+            <TextField defaultValue={editingCampaign?.title ?? ''} label="Title" name="title" required />
+            <TextField defaultValue={editingCampaign?.slug ?? ''} label="Slug" name="slug" required />
+            <TextField defaultValue={editingCampaign?.goal_amount ?? ''} label="Goal amount" min={0} name="goal_amount" required step="0.01" type="number" />
+            <TextField defaultValue={editingCampaign?.currency ?? 'EGP'} label="Currency" maxLength={3} name="currency" required />
+            <TextField defaultValue={editingCampaign?.start_date ?? todayDate()} label="Start date" name="start_date" required type="date" />
+            <TextField defaultValue={editingCampaign?.end_date ?? ''} label="End date" name="end_date" type="date" />
+            <SelectField defaultValue={editingCampaign?.status ?? 'draft'} label={editingCampaign ? 'Current status' : 'Initial status'} name="status" options={['draft', 'active', 'paused', 'completed', 'cancelled']} />
+            <SelectField defaultValue={editingCampaign?.visibility ?? 'private'} label="Visibility" name="visibility" options={['private', 'public']} />
+          </FormGrid>
+          <TextField defaultValue={editingCampaign?.cover_image ?? ''} label="Cover image URL/path" name="cover_image" />
+          <TextAreaField defaultValue={editingCampaign?.description ?? ''} label="Description" name="description" />
+          <FormFooter isPending={createMutation.isPending || updateMutation.isPending} onCancel={editingCampaignId ? () => setEditingCampaignId(null) : undefined} submitLabel={editingCampaign ? 'Save campaign' : 'Create campaign'} />
+          <MutationState isError={createMutation.isError || updateMutation.isError || deleteMutation.isError || workflowMutation.isError} isSuccess={createMutation.isSuccess || updateMutation.isSuccess || deleteMutation.isSuccess || workflowMutation.isSuccess} />
+        </form>
       </Panel>
     </ModulePage>
   )
 }
 
 function DonationsPage() {
+  const queryClient = useQueryClient()
+  const [selectedDonationId, setSelectedDonationId] = useState<number | null>(null)
+  const [editingDonationId, setEditingDonationId] = useState<number | null>(null)
+  const [editingAllocation, setEditingAllocation] = useState<DonationAllocation | null>(null)
   const donations = useQuery({ queryKey: ['donations'], queryFn: getDonations })
+  const donors = useQuery({ queryKey: ['donors'], queryFn: getDonors })
+  const campaigns = useQuery({ queryKey: ['campaigns'], queryFn: getCampaigns })
+  const beneficiaries = useQuery({ queryKey: ['beneficiaries'], queryFn: getBeneficiaries })
+  const caseFiles = useQuery({ queryKey: ['case-files'], queryFn: getCaseFiles })
+  const donationDetail = useQuery({
+    queryKey: ['donation', selectedDonationId],
+    queryFn: () => getDonation(selectedDonationId as number),
+    enabled: selectedDonationId !== null,
+  })
+  const editingDonation = editingDonationId ? donationDetail.data ?? donations.data?.find((donation) => donation.id === editingDonationId) ?? null : null
+  const donationIsLocked = editingDonation ? isDonationLocked(editingDonation) : false
+  const selectedDonationIsLocked = donationDetail.data ? isDonationLocked(donationDetail.data) : false
+
+  useEffect(() => {
+    setEditingAllocation(null)
+  }, [selectedDonationId])
+
+  function refreshDonations(id?: number | null) {
+    void queryClient.invalidateQueries({ queryKey: ['donations'] })
+    void queryClient.invalidateQueries({ queryKey: ['campaigns'] })
+    void queryClient.invalidateQueries({ queryKey: ['donors'] })
+
+    if (id) {
+      void queryClient.invalidateQueries({ queryKey: ['donation', id] })
+      void queryClient.invalidateQueries({ queryKey: ['donation-payment-transactions', id] })
+    }
+  }
+
+  const createMutation = useMutation({
+    mutationFn: createDonation,
+    onSuccess: (donation) => {
+      setSelectedDonationId(donation.id)
+      setEditingDonationId(null)
+      refreshDonations(donation.id)
+    },
+  })
+  const updateMutation = useMutation({
+    mutationFn: ({ id, input }: { id: number; input: DonationInput }) => updateDonation(id, input),
+    onSuccess: (donation) => {
+      setSelectedDonationId(donation.id)
+      setEditingDonationId(null)
+      refreshDonations(donation.id)
+    },
+  })
+  const cancelMutation = useMutation({
+    mutationFn: cancelDonation,
+    onSuccess: (donation) => refreshDonations(donation.id),
+  })
+  const confirmMutation = useMutation({
+    mutationFn: ({ id, input }: { id: number; input: ConfirmDonationInput }) => confirmDonation(id, input),
+    onSuccess: (donation) => refreshDonations(donation.id),
+  })
+  const receiptMutation = useMutation({
+    mutationFn: generateDonationReceipt,
+    onSuccess: (_, id) => refreshDonations(id),
+  })
+  const createAllocationMutation = useMutation({
+    mutationFn: ({ donationId, input }: { donationId: number; input: DonationAllocationInput }) => createDonationAllocation(donationId, input),
+    onSuccess: (_, variables) => {
+      setEditingAllocation(null)
+      refreshDonations(variables.donationId)
+    },
+  })
+  const updateAllocationMutation = useMutation({
+    mutationFn: ({ allocationId, donationId, input }: { allocationId: number; donationId: number; input: DonationAllocationInput }) => updateDonationAllocation(donationId, allocationId, input),
+    onSuccess: (_, variables) => {
+      setEditingAllocation(null)
+      refreshDonations(variables.donationId)
+    },
+  })
+  const deleteAllocationMutation = useMutation({
+    mutationFn: ({ allocationId, donationId }: { allocationId: number; donationId: number }) => deleteDonationAllocation(donationId, allocationId),
+    onSuccess: (_, variables) => refreshDonations(variables.donationId),
+  })
+
+  function buildDonationInput(form: FormData, donation?: Donation | null): DonationInput {
+    if (donation && isDonationLocked(donation)) {
+      return { notes: formNullable(form, 'donation_notes') }
+    }
+
+    return {
+      donor_id: formNullableNumber(form, 'donor_id'),
+      campaign_id: formNullableNumber(form, 'campaign_id'),
+      amount: Number(formString(form, 'amount')),
+      currency: formString(form, 'currency').toUpperCase(),
+      payment_method: formString(form, 'payment_method') as DonationInput['payment_method'],
+      donation_status: formString(form, 'donation_status') as DonationInput['donation_status'],
+      donated_at: formString(form, 'donated_at'),
+      notes: formNullable(form, 'donation_notes'),
+    }
+  }
+
+  function buildAllocationInput(form: FormData): DonationAllocationInput {
+    return {
+      allocation_type: formString(form, 'allocation_type') as DonationAllocationInput['allocation_type'],
+      campaign_id: formNullableNumber(form, 'allocation_campaign_id'),
+      beneficiary_id: formNullableNumber(form, 'allocation_beneficiary_id'),
+      case_file_id: formNullableNumber(form, 'allocation_case_file_id'),
+      amount: Number(formString(form, 'allocation_amount')),
+      notes: formNullable(form, 'allocation_notes'),
+    }
+  }
+
+  function handleDonationSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+    const input = buildDonationInput(new FormData(event.currentTarget), editingDonation)
+
+    if (editingDonationId) {
+      updateMutation.mutate({ id: editingDonationId, input })
+    } else {
+      createMutation.mutate(input)
+    }
+  }
+
+  function handleAllocationSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault()
+
+    if (!selectedDonationId) {
+      return
+    }
+
+    const input = buildAllocationInput(new FormData(event.currentTarget))
+
+    if (editingAllocation) {
+      updateAllocationMutation.mutate({ allocationId: editingAllocation.id, donationId: selectedDonationId, input })
+    } else {
+      createAllocationMutation.mutate({ donationId: selectedDonationId, input })
+    }
+  }
+
+  function runDonationConfirm(donation: Donation) {
+    if (!window.confirm(`Confirm payment for ${donation.donation_number}?`)) {
+      return
+    }
+
+    const notes = window.prompt('Confirmation notes (optional)')
+    confirmMutation.mutate({
+      id: donation.id,
+      input: {
+        provider: 'manual',
+        paid_at: new Date().toISOString(),
+        notes: notes?.trim() || null,
+      },
+    })
+  }
 
   return (
-    <ModulePage description="Record donations, manage allocations, confirm payments, and generate receipts." title="Donations" planned={['Add donation form with allocation builder.', 'Add manual confirmation and receipt actions.']}>
+    <ModulePage description="Record donations, manage allocations, confirm payments, and generate receipts." title="Donations">
       <Panel icon={<DollarSign size={20} />} title="Donations">
         <RecordList
           isError={donations.isError}
@@ -1642,24 +2131,272 @@ function DonationsPage() {
           items={donations.data}
           label="donations"
           render={(donation) => (
-            <>
-              <StatusBadge status={donation.payment_status} /> {donation.donation_number} - {donation.donor?.name ?? 'Anonymous'} - {donation.amount} {donation.currency} - {donation.donation_status}
-            </>
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>
+                <StatusBadge status={donation.payment_status} /> {donation.donation_number} - {donation.donor?.name ?? 'Anonymous'} - {formatMoney(donation.amount, donation.currency)} - {donation.donation_status}
+              </span>
+              <span className="flex flex-wrap gap-2">
+                <SmallButton onClick={() => setSelectedDonationId(donation.id)}>Details</SmallButton>
+                <SmallButton
+                  onClick={() => {
+                    setSelectedDonationId(donation.id)
+                    setEditingDonationId(donation.id)
+                  }}
+                >
+                  Edit
+                </SmallButton>
+                {!isDonationLocked(donation) ? <SmallButton danger onClick={() => window.confirm(`Cancel ${donation.donation_number}?`) && cancelMutation.mutate(donation.id)}>Cancel</SmallButton> : null}
+              </span>
+            </div>
           )}
         />
+      </Panel>
+      <Panel icon={<Receipt size={20} />} title="Donation Detail">
+        {selectedDonationId ? (
+          donationDetail.data ? (
+            <div className="space-y-4">
+              <KeyValueRows
+                rows={[
+                  ['Donation number', donationDetail.data.donation_number],
+                  ['Donor', donationDetail.data.donor?.name ?? 'Anonymous'],
+                  ['Campaign', donationDetail.data.campaign?.title ?? 'None'],
+                  ['Amount', formatMoney(donationDetail.data.amount, donationDetail.data.currency)],
+                  ['Allocated', formatMoney(donationAllocationTotal(donationDetail.data), donationDetail.data.currency)],
+                  ['Remaining', formatMoney(donationRemainingAmount(donationDetail.data), donationDetail.data.currency)],
+                  ['Payment method', donationDetail.data.payment_method],
+                  ['Payment status', donationDetail.data.payment_status],
+                  ['Donation status', donationDetail.data.donation_status],
+                  ['Donated at', formatDate(donationDetail.data.donated_at)],
+                  ['Confirmed at', donationDetail.data.confirmed_at ? formatDate(donationDetail.data.confirmed_at) : null],
+                  ['Receipt', donationDetail.data.receipt?.receipt_number ?? null],
+                ]}
+              />
+              <p className="text-sm leading-6 text-[#52645e]">{donationDetail.data.notes ?? 'No donation notes.'}</p>
+              <div className="flex flex-wrap gap-2">
+                {!selectedDonationIsLocked ? <SmallButton onClick={() => runDonationConfirm(donationDetail.data)}>Confirm payment</SmallButton> : null}
+                {!selectedDonationIsLocked ? <SmallButton danger onClick={() => window.confirm(`Cancel ${donationDetail.data.donation_number}?`) && cancelMutation.mutate(donationDetail.data.id)}>Cancel</SmallButton> : null}
+                {isDonationConfirmed(donationDetail.data) ? <SmallButton onClick={() => receiptMutation.mutate(donationDetail.data.id)}>{donationDetail.data.receipt ? 'Regenerate receipt' : 'Generate receipt'}</SmallButton> : null}
+              </div>
+            </div>
+          ) : (
+            <LoadingOrEmpty isError={donationDetail.isError} isLoading={donationDetail.isPending} label="Loading donation" />
+          )
+        ) : (
+          <EmptyState title="Select a donation" />
+        )}
+      </Panel>
+      <Panel icon={<Settings size={20} />} title={editingDonation ? `Edit ${editingDonation.donation_number}` : 'Create Donation'}>
+        <form className="space-y-4" key={editingDonation?.id ?? 'new-donation'} onSubmit={handleDonationSubmit}>
+          <FormGrid>
+            <SelectField
+              defaultValue={editingDonation?.donor_id ? String(editingDonation.donor_id) : ''}
+              disabled={donationIsLocked}
+              label="Donor"
+              name="donor_id"
+              optionLabels={{ '': 'Anonymous / no donor', ...(donors.data ?? []).reduce<Record<string, string>>((labels, donor) => ({ ...labels, [String(donor.id)]: `${donor.name} (${donor.donor_type})` }), {}) }}
+              options={['', ...(donors.data ?? []).map((donor) => String(donor.id))]}
+            />
+            <SelectField
+              defaultValue={editingDonation?.campaign_id ? String(editingDonation.campaign_id) : ''}
+              disabled={donationIsLocked}
+              label="Campaign"
+              name="campaign_id"
+              optionLabels={{ '': 'No campaign', ...(campaigns.data ?? []).reduce<Record<string, string>>((labels, campaign) => ({ ...labels, [String(campaign.id)]: `${campaign.title} (${campaign.status})` }), {}) }}
+              options={['', ...(campaigns.data ?? []).map((campaign) => String(campaign.id))]}
+            />
+            <TextField defaultValue={editingDonation?.amount ?? ''} disabled={donationIsLocked} label="Amount" min={0.01} name="amount" required={!donationIsLocked} step="0.01" type="number" />
+            <TextField defaultValue={editingDonation?.currency ?? 'EGP'} disabled={donationIsLocked} label="Currency" maxLength={3} name="currency" required={!donationIsLocked} />
+            <SelectField defaultValue={editingDonation?.payment_method ?? 'cash'} disabled={donationIsLocked} label="Payment method" name="payment_method" options={['cash', 'bank_transfer', 'card', 'check', 'mobile_wallet', 'other']} required={!donationIsLocked} />
+            <SelectField defaultValue={editingDonation?.donation_status ?? 'pending'} disabled={donationIsLocked} label="Donation status" name="donation_status" options={['draft', 'pending']} />
+            <TextField defaultValue={dateTimeLocalValue(editingDonation?.donated_at)} disabled={donationIsLocked} label="Donated at" name="donated_at" required={!donationIsLocked} type="datetime-local" />
+          </FormGrid>
+          <TextAreaField defaultValue={editingDonation?.notes ?? ''} label="Notes" name="donation_notes" />
+          <FormFooter isPending={createMutation.isPending || updateMutation.isPending} onCancel={editingDonationId ? () => setEditingDonationId(null) : undefined} submitLabel={editingDonation ? 'Save donation' : 'Create donation'} />
+          <MutationState isError={createMutation.isError || updateMutation.isError || cancelMutation.isError || confirmMutation.isError || receiptMutation.isError} isSuccess={createMutation.isSuccess || updateMutation.isSuccess || cancelMutation.isSuccess || confirmMutation.isSuccess || receiptMutation.isSuccess} />
+        </form>
+      </Panel>
+      <Panel icon={<ListChecks size={20} />} title="Allocation Builder">
+        {donationDetail.data ? (
+          <div className="space-y-4">
+            <KeyValueRows
+              rows={[
+                ['Donation amount', formatMoney(donationDetail.data.amount, donationDetail.data.currency)],
+                ['Allocated total', formatMoney(donationAllocationTotal(donationDetail.data), donationDetail.data.currency)],
+                ['Remaining before confirmation', formatMoney(donationRemainingAmount(donationDetail.data), donationDetail.data.currency)],
+              ]}
+            />
+            <RecordList
+              items={donationDetail.data.allocations ?? []}
+              label="donation allocations"
+              render={(allocation) => (
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span>
+                    {allocation.allocation_type} - {allocationTargetLabel(allocation)} - {formatMoney(allocation.amount, donationDetail.data?.currency ?? 'EGP')}
+                  </span>
+                  {!selectedDonationIsLocked ? (
+                    <span className="flex gap-2">
+                      <SmallButton onClick={() => setEditingAllocation(allocation)}>Edit</SmallButton>
+                      <SmallButton danger onClick={() => selectedDonationId && window.confirm('Delete this allocation?') && deleteAllocationMutation.mutate({ allocationId: allocation.id, donationId: selectedDonationId })}>
+                        Delete
+                      </SmallButton>
+                    </span>
+                  ) : null}
+                </div>
+              )}
+            />
+            {!selectedDonationIsLocked ? (
+              <form className="space-y-4" key={editingAllocation?.id ?? `allocation-${selectedDonationId}`} onSubmit={handleAllocationSubmit}>
+                <FormGrid>
+                  <SelectField defaultValue={editingAllocation?.allocation_type ?? 'general_fund'} label="Allocation type" name="allocation_type" options={['general_fund', 'campaign', 'beneficiary', 'case_file', 'medical', 'education', 'food', 'emergency', 'inventory', 'other']} />
+                  <TextField defaultValue={editingAllocation?.amount ?? ''} label="Amount" min={0.01} name="allocation_amount" required step="0.01" type="number" />
+                  <SelectField
+                    defaultValue={editingAllocation?.campaign_id ? String(editingAllocation.campaign_id) : ''}
+                    label="Target campaign"
+                    name="allocation_campaign_id"
+                    optionLabels={{ '': 'No campaign target', ...(campaigns.data ?? []).reduce<Record<string, string>>((labels, campaign) => ({ ...labels, [String(campaign.id)]: `${campaign.title} (${campaign.status})` }), {}) }}
+                    options={['', ...(campaigns.data ?? []).map((campaign) => String(campaign.id))]}
+                  />
+                  <SelectField
+                    defaultValue={editingAllocation?.beneficiary_id ? String(editingAllocation.beneficiary_id) : ''}
+                    label="Target beneficiary"
+                    name="allocation_beneficiary_id"
+                    optionLabels={{ '': 'No beneficiary target', ...(beneficiaries.data ?? []).reduce<Record<string, string>>((labels, beneficiary) => ({ ...labels, [String(beneficiary.id)]: `${beneficiary.code} - ${beneficiary.full_name} (${beneficiary.status})` }), {}) }}
+                    options={['', ...(beneficiaries.data ?? []).map((beneficiary) => String(beneficiary.id))]}
+                  />
+                  <SelectField
+                    defaultValue={editingAllocation?.case_file_id ? String(editingAllocation.case_file_id) : ''}
+                    label="Target case file"
+                    name="allocation_case_file_id"
+                    optionLabels={{ '': 'No case target', ...(caseFiles.data ?? []).reduce<Record<string, string>>((labels, caseFile) => ({ ...labels, [String(caseFile.id)]: `${caseFile.case_number} (${caseFile.status})` }), {}) }}
+                    options={['', ...(caseFiles.data ?? []).map((caseFile) => String(caseFile.id))]}
+                  />
+                </FormGrid>
+                <TextAreaField defaultValue={editingAllocation?.notes ?? ''} label="Allocation notes" name="allocation_notes" />
+                <FormFooter isPending={createAllocationMutation.isPending || updateAllocationMutation.isPending} onCancel={editingAllocation ? () => setEditingAllocation(null) : undefined} submitLabel={editingAllocation ? 'Save allocation' : 'Add allocation'} />
+                <MutationState isError={createAllocationMutation.isError || updateAllocationMutation.isError || deleteAllocationMutation.isError} isSuccess={createAllocationMutation.isSuccess || updateAllocationMutation.isSuccess || deleteAllocationMutation.isSuccess} />
+              </form>
+            ) : (
+              <EmptyState title="Allocations are locked" />
+            )}
+          </div>
+        ) : (
+          <EmptyState title="Select a donation" />
+        )}
       </Panel>
     </ModulePage>
   )
 }
 
 function PaymentsPage() {
+  const queryClient = useQueryClient()
+  const [selectedDonationId, setSelectedDonationId] = useState<number | null>(null)
+  const [selectedTransactionId, setSelectedTransactionId] = useState<number | null>(null)
+  const donations = useQuery({ queryKey: ['donations'], queryFn: getDonations })
+  const donationDetail = useQuery({
+    queryKey: ['donation', selectedDonationId],
+    queryFn: () => getDonation(selectedDonationId as number),
+    enabled: selectedDonationId !== null,
+  })
+  const transactions = useQuery({
+    queryKey: ['donation-payment-transactions', selectedDonationId],
+    queryFn: () => getDonationPaymentTransactions(selectedDonationId as number),
+    enabled: selectedDonationId !== null,
+  })
+  const transactionDetail = useQuery({
+    queryKey: ['payment-transaction', selectedTransactionId],
+    queryFn: () => getPaymentTransaction(selectedTransactionId as number),
+    enabled: selectedTransactionId !== null,
+  })
+  const receiptMutation = useMutation({
+    mutationFn: generateDonationReceipt,
+    onSuccess: (_, id) => {
+      void queryClient.invalidateQueries({ queryKey: ['donation', id] })
+      void queryClient.invalidateQueries({ queryKey: ['donations'] })
+    },
+  })
+
   return (
-    <PlaceholderModulePage
-      icon={<Receipt size={20} />}
-      planned={['Add payment transaction list/detail.', 'Add receipt view and generation flow from donation detail pages.']}
-      title="Payments & Receipts"
-      description="Payment transactions and receipts are API-backed, but dedicated browser screens are queued for the finance UI slice."
-    />
+    <ModulePage description="Review payment transactions and issued receipts." title="Payments & Receipts">
+      <Panel icon={<Receipt size={20} />} title="Donation Payments">
+        <RecordList
+          isError={donations.isError}
+          isLoading={donations.isPending}
+          items={donations.data}
+          label="donations"
+          render={(donation) => (
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <span>
+                <StatusBadge status={donation.payment_status} /> {donation.donation_number} - {formatMoney(donation.amount, donation.currency)} - {donation.payment_transactions_count ?? 0} transactions
+              </span>
+              <SmallButton
+                onClick={() => {
+                  setSelectedDonationId(donation.id)
+                  setSelectedTransactionId(null)
+                }}
+              >
+                View
+              </SmallButton>
+            </div>
+          )}
+        />
+      </Panel>
+      <Panel icon={<FileText size={20} />} title="Receipt">
+        {selectedDonationId ? (
+          donationDetail.data ? (
+            <div className="space-y-4">
+              <KeyValueRows
+                rows={[
+                  ['Donation', donationDetail.data.donation_number],
+                  ['Status', donationDetail.data.donation_status],
+                  ['Payment', donationDetail.data.payment_status],
+                  ['Receipt number', donationDetail.data.receipt?.receipt_number ?? null],
+                  ['Receipt status', donationDetail.data.receipt?.status ?? null],
+                  ['Issued at', donationDetail.data.receipt?.issued_at ? formatDate(donationDetail.data.receipt.issued_at) : null],
+                  ['Issued by', donationDetail.data.receipt?.issuer?.email ?? null],
+                ]}
+              />
+              {isDonationConfirmed(donationDetail.data) ? <SmallButton onClick={() => receiptMutation.mutate(donationDetail.data.id)}>{donationDetail.data.receipt ? 'Regenerate receipt' : 'Generate receipt'}</SmallButton> : null}
+              <MutationState isError={receiptMutation.isError} isSuccess={receiptMutation.isSuccess} />
+            </div>
+          ) : (
+            <LoadingOrEmpty isError={donationDetail.isError} isLoading={donationDetail.isPending} label="Loading receipt" />
+          )
+        ) : (
+          <EmptyState title="Select a donation" />
+        )}
+      </Panel>
+      <Panel icon={<ListChecks size={20} />} title="Payment Transactions">
+        {selectedDonationId ? (
+          <RecordList
+            isError={transactions.isError}
+            isLoading={transactions.isPending}
+            items={transactions.data}
+            label="payment transactions"
+            render={(transaction) => (
+              <div className="flex flex-wrap items-center justify-between gap-2">
+                <span>
+                  <StatusBadge status={transaction.status} /> {transaction.provider} - {formatMoney(transaction.amount, transaction.currency)} - {transaction.paid_at ? formatDate(transaction.paid_at) : formatDate(transaction.created_at)}
+                </span>
+                <SmallButton onClick={() => setSelectedTransactionId(transaction.id)}>Details</SmallButton>
+              </div>
+            )}
+          />
+        ) : (
+          <EmptyState title="Select a donation" />
+        )}
+      </Panel>
+      <Panel icon={<FileText size={20} />} title="Transaction Detail">
+        {selectedTransactionId ? (
+          transactionDetail.data ? (
+            <PaymentTransactionDetail transaction={transactionDetail.data} />
+          ) : (
+            <LoadingOrEmpty isError={transactionDetail.isError} isLoading={transactionDetail.isPending} label="Loading payment transaction" />
+          )
+        ) : (
+          <EmptyState title="Select a transaction" />
+        )}
+      </Panel>
+    </ModulePage>
   )
 }
 
@@ -2185,6 +2922,27 @@ function JsonBlock({ label, value }: { label: string; value: Record<string, unkn
   )
 }
 
+function PaymentTransactionDetail({ transaction }: { transaction: PaymentTransaction }) {
+  return (
+    <div className="space-y-4 text-sm">
+      <KeyValueRows
+        rows={[
+          ['Provider', transaction.provider],
+          ['Provider transaction ID', transaction.provider_transaction_id],
+          ['Idempotency key', transaction.idempotency_key],
+          ['Amount', formatMoney(transaction.amount, transaction.currency)],
+          ['Status', transaction.status],
+          ['Paid at', transaction.paid_at ? formatDate(transaction.paid_at) : null],
+          ['Failed at', transaction.failed_at ? formatDate(transaction.failed_at) : null],
+          ['Created', formatDate(transaction.created_at)],
+        ]}
+      />
+      <JsonBlock label="Request payload" value={transaction.request_payload} />
+      <JsonBlock label="Response payload" value={transaction.response_payload} />
+    </div>
+  )
+}
+
 function StatusBadge({ status }: { status: string }) {
   return <span className={`mr-2 rounded-md border px-2 py-0.5 text-xs font-medium ${statusClass(status)}`}>{status}</span>
 }
@@ -2305,6 +3063,74 @@ function formatFileSize(bytes: number) {
   }
 
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
+}
+
+function moneyNumber(value: string | number | null | undefined) {
+  const number = Number(value ?? 0)
+
+  return Number.isNaN(number) ? 0 : number
+}
+
+function formatMoney(value: string | number | null | undefined, currency: string) {
+  return `${moneyNumber(value).toLocaleString(undefined, { maximumFractionDigits: 2, minimumFractionDigits: 2 })} ${currency}`
+}
+
+function donationAllocationTotal(donation: Donation) {
+  return (donation.allocations ?? []).reduce((total, allocation) => total + moneyNumber(allocation.amount), 0)
+}
+
+function donationRemainingAmount(donation: Donation) {
+  return moneyNumber(donation.amount) - donationAllocationTotal(donation)
+}
+
+function isDonationConfirmed(donation: Donation) {
+  return donation.payment_status === 'paid' && donation.donation_status === 'confirmed'
+}
+
+function isDonationLocked(donation: Donation) {
+  return isDonationConfirmed(donation) || ['cancelled', 'refunded'].includes(donation.donation_status) || ['cancelled', 'refunded'].includes(donation.payment_status)
+}
+
+function allocationTargetLabel(allocation: DonationAllocation) {
+  if (allocation.campaign) {
+    return allocation.campaign.title
+  }
+
+  if (allocation.beneficiary) {
+    return `${allocation.beneficiary.code} - ${allocation.beneficiary.full_name}`
+  }
+
+  if (allocation.case_file) {
+    return allocation.case_file.case_number
+  }
+
+  return 'No specific target'
+}
+
+function campaignProgress(campaign: Campaign) {
+  const goal = moneyNumber(campaign.goal_amount)
+
+  return goal > 0 ? Math.min((moneyNumber(campaign.collected_amount) / goal) * 100, 100) : 0
+}
+
+function formatPreferences(value: Donor['communication_preferences'] | undefined) {
+  if (Array.isArray(value)) {
+    return value.join(', ')
+  }
+
+  if (value && typeof value === 'object') {
+    return Object.values(value).map(String).join(', ')
+  }
+
+  return ''
+}
+
+function todayDate() {
+  return new Date().toISOString().slice(0, 10)
+}
+
+function dateTimeLocalValue(value?: string | null) {
+  return value ? value.slice(0, 16) : new Date().toISOString().slice(0, 16)
 }
 
 const router = createBrowserRouter([

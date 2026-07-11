@@ -86,8 +86,9 @@ Checklist:
 - [x] Implement organization, branches, users, roles, permissions, and audit log screens.
 - [x] Expand beneficiary and case frontend API clients with write operations.
 - [x] Implement beneficiary, family member, case file, note, and document screens.
+- [x] Expand finance frontend API clients with write operations.
+- [x] Implement donor, campaign, donation, allocation, payment transaction, and receipt screens.
 - [ ] Expand remaining frontend API clients with write operations.
-- [ ] Implement donor, campaign, donation, allocation, payment transaction, and receipt screens.
 - [ ] Implement warehouse, inventory item, stock lot, stock movement, low-stock, and expiring-stock screens.
 - [ ] Implement aid batch, distribution, item, stock-check, delivery, failure, reschedule, and proof screens.
 - [ ] Implement reports, exports, public portal settings, notifications, queue health, and scheduler screens.
