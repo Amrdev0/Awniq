@@ -13,7 +13,7 @@ Awniq is an open-source aid operations platform for NGOs, charities, and small i
 - Aid batches, distributions, delivery status, and proof metadata.
 - Dashboard reports, CSV exports, public transparency APIs, and operational notifications.
 
-Do not add payment gateways, WhatsApp, OCR, mobile apps, or advanced BI features unless they are part of an accepted roadmap issue.
+Do not add payment gateways, WhatsApp, OCR, mobile apps, or advanced BI features unless they are part of an accepted project issue.
 
 ## Local Setup
 
@@ -50,7 +50,7 @@ Password123!
 - Prefer existing Laravel, React, and TypeScript patterns already used in the repo.
 - Add or update tests when behavior changes.
 - Do not commit `.env`, local databases, private documents, generated exports, or real beneficiary/donor data.
-- Do not commit files from the local planning-only `docs/` folder.
+- Do not commit private local notes or planning artifacts.
 - Keep demo data fictional and clearly marked with `.test` domains or demo IDs.
 
 ## Quality Gates

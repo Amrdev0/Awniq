@@ -35,10 +35,10 @@ This release candidate packages the Awniq MVP foundation for public review and m
 - Email notification delivery is not enabled yet.
 - No SMS or WhatsApp channel exists yet.
 - No mobile app exists yet.
-- Seeded Phase 11 screenshots are checked in under `screenshots/phase-11/`.
-- Seeded browser walkthrough passed for the implemented admin control system and public portal.
+- Demo screenshots are checked in under `screenshots/admin-demo/`.
+- Browser walkthrough passed for the implemented admin control system and public portal.
 - OpenAPI is manually maintained and can drift if contributors forget to update it.
-- RTL and localization are planned but not complete.
+- RTL and localization support is partial.
 - Data retention policies are documented but not automated.
 
 ### Upgrade Notes

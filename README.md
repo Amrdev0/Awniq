@@ -6,7 +6,7 @@ The project is being built with Laravel as the main backend application foundati
 
 ## Current Status
 
-Phase 10 backend/API and open-source release readiness foundation are complete. Phase 11 now includes the full browser-based admin control system, and the seeded browser walkthrough with screenshot capture has passed.
+Awniq currently includes the backend API, browser-based admin control system, public transparency portal, demo seed data, and release documentation needed for local review and manual testing.
 
 Implemented so far:
 
@@ -33,7 +33,7 @@ Implemented so far:
 - Admin notification bell with unread badge and mark-read actions
 - Server-driven pagination and search across growing admin collections, with URL-backed page state, 15/25/50/100 page sizes, scoped totals, and independent nested-list controls
 - Public release metadata endpoint at `/api/v1/version`
-- MIT license, contribution guide, code of conduct, security policy, issue templates, pull request template, release notes, deployment guide, architecture notes, database notes, roadmap, and demo walkthrough
+- MIT license, contribution guide, code of conduct, security policy, issue templates, pull request template, release notes, deployment guide, architecture notes, database notes, and demo walkthrough
 - Demo identity, case-management, finance, inventory, and aid distribution seed data for manual testing
 - Basic backend and frontend test setup
 - GitHub Actions CI workflow with migration, seeder, backend, frontend, and OpenAPI YAML checks
@@ -41,7 +41,7 @@ Implemented so far:
 Admin frontend status:
 
 - The admin shell now exposes permission-aware routes and controls for identity, beneficiary/case, finance, inventory, aid distribution, reports/CSV exports, public portal settings, notifications, and system health.
-- Seeded browser walkthrough and Phase 11 screenshot capture passed against the local demo environment.
+- Browser walkthrough and screenshot capture passed against the local demo environment.
 
 ## Tech Stack
 
@@ -174,7 +174,6 @@ http://127.0.0.1:5173/public
 - [Database notes](DATABASE.md)
 - [Deployment guide](DEPLOYMENT.md)
 - [Demo walkthrough](DEMO_WALKTHROUGH.md)
-- [Roadmap](ROADMAP.md)
 - [Release notes](RELEASE_NOTES.md)
 - [Release checklist](RELEASE_CHECKLIST.md)
 - [Contributing guide](CONTRIBUTING.md)
@@ -356,25 +355,19 @@ npm run build
 - Public donation intent is a placeholder and does not process real payments.
 - Email, SMS, WhatsApp, OCR, and mobile apps are not included in the MVP.
 - OpenAPI is manually maintained until generation/validation is automated further.
-- RTL and localization are planned but not complete.
+- RTL and localization support is partial.
 - Data retention policies are documented but not automated.
-- Seeded Phase 11 screenshots are checked in under `screenshots/phase-11/`.
-- Full admin control screens are not complete yet; inventory, aid distribution, report/export, public settings, and notification writes still require API/Postman rather than browser UI.
+- Demo screenshots are checked in under `screenshots/admin-demo/`.
 
-## GitHub Push Notes
+## Repository Hygiene
 
-The following local planning files are intentionally ignored and should not be pushed:
-
-- `OpenImpact_OS_Project_Brief.md`
-- `docs/`
-
-Environment files are also ignored:
+Environment files are ignored:
 
 - `.env`
 - `.env.*`
 
 Only `.env.example` files should be committed.
 
-## Roadmap
+## Project Status
 
-The backend/API foundation and Phase 11 admin control implementation are complete. See [ROADMAP.md](ROADMAP.md) for the remaining Phase 12 scalability verification checklist.
+The backend API, admin control system, public portal, demo data, and release support files are available for local testing and review.
