@@ -25,6 +25,8 @@ This release candidate packages the Awniq MVP foundation for public review and m
 - Automated MVP release smoke coverage for the demo workflow.
 - Limited-role authorization smoke coverage for auditor, volunteer, finance, warehouse, and distribution roles.
 - Date-stable demo finance seed data so dashboard and export checks do not break across month boundaries.
+- Full permission-aware admin control system for identity, cases, finance, inventory, aid distribution, reports/exports, public settings, notifications, and system health.
+- Server-driven pagination for growing admin and public collections, including independent nested lists, URL-restorable state, search, scoped totals, and a global 100-row page-size ceiling.
 
 ### Known Limitations
 
@@ -33,8 +35,8 @@ This release candidate packages the Awniq MVP foundation for public review and m
 - Email notification delivery is not enabled yet.
 - No SMS or WhatsApp channel exists yet.
 - No mobile app exists yet.
-- Screenshots are not checked in yet.
-- The admin frontend is not yet a full control system; most module write workflows still need dedicated browser pages and forms.
+- Seeded Phase 11 screenshots are checked in under `screenshots/phase-11/`.
+- Seeded browser walkthrough passed for the implemented admin control system and public portal.
 - OpenAPI is manually maintained and can drift if contributors forget to update it.
 - RTL and localization are planned but not complete.
 - Data retention policies are documented but not automated.

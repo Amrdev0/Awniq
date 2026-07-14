@@ -6,7 +6,7 @@ The project is being built with Laravel as the main backend application foundati
 
 ## Current Status
 
-Phase 10 backend/API and open-source release readiness foundation are complete. Phase 11, the full admin control system frontend, is now the release-blocking next step.
+Phase 10 backend/API and open-source release readiness foundation are complete. Phase 11 now includes the full browser-based admin control system, and the seeded browser walkthrough with screenshot capture has passed.
 
 Implemented so far:
 
@@ -31,15 +31,17 @@ Implemented so far:
 - In-app notification, unread count, mark-read, notification preference, queue health, and scheduler visibility endpoints
 - Scheduled jobs for low stock, expiring stock, case follow-up, pending batch approval, and pending donation reminders
 - Admin notification bell with unread badge and mark-read actions
+- Server-driven pagination and search across growing admin collections, with URL-backed page state, 15/25/50/100 page sizes, scoped totals, and independent nested-list controls
 - Public release metadata endpoint at `/api/v1/version`
 - MIT license, contribution guide, code of conduct, security policy, issue templates, pull request template, release notes, deployment guide, architecture notes, database notes, roadmap, and demo walkthrough
 - Demo identity, case-management, finance, inventory, and aid distribution seed data for manual testing
 - Basic backend and frontend test setup
 - GitHub Actions CI workflow with migration, seeder, backend, frontend, and OpenAPI YAML checks
 
-Important current gap:
+Admin frontend status:
 
-- Phase 11 has started with an admin shell, sidebar navigation, `/dashboard`, routed module pages, identity control screens, beneficiary/case operations screens, and finance operations screens. Awniq still needs Phase 11 follow-up slices before a product MVP release: inventory, aid distribution, reports, public settings, notification controls, and deeper permission-aware UI coverage.
+- The admin shell now exposes permission-aware routes and controls for identity, beneficiary/case, finance, inventory, aid distribution, reports/CSV exports, public portal settings, notifications, and system health.
+- Seeded browser walkthrough and Phase 11 screenshot capture passed against the local demo environment.
 
 ## Tech Stack
 
@@ -356,7 +358,7 @@ npm run build
 - OpenAPI is manually maintained until generation/validation is automated further.
 - RTL and localization are planned but not complete.
 - Data retention policies are documented but not automated.
-- Screenshots are not checked in yet; capture them from seeded demo data before tagging a public release.
+- Seeded Phase 11 screenshots are checked in under `screenshots/phase-11/`.
 - Full admin control screens are not complete yet; inventory, aid distribution, report/export, public settings, and notification writes still require API/Postman rather than browser UI.
 
 ## GitHub Push Notes
@@ -375,4 +377,4 @@ Only `.env.example` files should be committed.
 
 ## Roadmap
 
-The backend/API foundation is complete through Phase 10, but the product MVP is blocked by Phase 11: the full admin control system frontend. See [ROADMAP.md](ROADMAP.md) for the updated release-blocking checklist.
+The backend/API foundation and Phase 11 admin control implementation are complete. See [ROADMAP.md](ROADMAP.md) for the remaining Phase 12 scalability verification checklist.

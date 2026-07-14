@@ -61,6 +61,19 @@ auditor@awniq.test
 11. Open reports and create a CSV export.
 12. Visit `/public` and confirm the public portal only exposes public-safe data.
 13. Open the notification bell and confirm workflow notifications appear.
+14. On a list route, change rows per page, navigate forward/back, run a search, reload the page, and confirm the URL restores the same list state.
+15. Open a beneficiary, case, donation, or distribution with related records and confirm its nested pagination changes independently from the main list.
+
+## Admin Route Map
+
+- Identity: `/organization`, `/branches`, `/users`, `/roles`, `/audit-logs`
+- Cases: `/beneficiaries`, `/case-files`
+- Finance: `/donors`, `/campaigns`, `/donations`, `/finance/payments`
+- Inventory: `/warehouses`, `/inventory-items`, `/stock/summary`, `/stock/lots`, `/stock/movements`, `/stock/low-stock`, `/stock/expiring`
+- Aid: `/aid-batches`, `/aid-distributions`
+- Visibility and operations: `/reports`, `/settings/public-portal`, `/notifications`, `/system`
+
+Navigation and direct routes are permission-aware. Write controls also require their matching create, update, workflow, or delete permission.
 
 ## Role Smoke Checks
 
